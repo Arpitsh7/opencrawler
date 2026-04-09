@@ -227,6 +227,55 @@ def get_search_keyword_fallback(user_request: str, category: str) -> str:
     return text
 
 
+def extract_compare_targets(user_request: str, category: str) -> list[str]:
+    if category not in {"prices", "tech_specs", "general"}:
+        return []
+
+    lowered = user_request.lower().strip()
+    if not any(marker in lowered for marker in ["compare", " vs ", " versus ", " and "]):
+        return []
+
+    normalized = lowered
+    normalized = re.sub(r"^\s*compare\s+", "", normalized)
+    normalized = normalized.replace(" versus ", " vs ")
+    normalized = re.sub(r"\bprices?\b", " ", normalized)
+    normalized = re.sub(r"\bcost\b", " ", normalized)
+    normalized = re.sub(r"\bspecs?\b", " ", normalized)
+    normalized = re.sub(r"\bspecifications?\b", " ", normalized)
+    normalized = re.sub(r"\bfeatures?\b", " ", normalized)
+    normalized = re.sub(r"\bin india\b", " ", normalized)
+    normalized = re.sub(r"\btoday\b", " ", normalized)
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+
+    if " vs " in normalized:
+        parts = [part.strip() for part in normalized.split(" vs ") if part.strip()]
+    else:
+        parts = [part.strip() for part in re.split(r"\s+\band\b\s+", normalized) if part.strip()]
+
+    cleaned_parts = []
+    for part in parts:
+        cleaned = re.sub(
+            r"\b(price|prices|cost|buy|deal|deals|offers?|sale|cheap|cheapest|compare)\b",
+            " ",
+            part,
+        )
+        cleaned = " ".join(cleaned.split()).strip()
+        if cleaned:
+            cleaned_parts.append(cleaned.title())
+
+    if len(cleaned_parts) < 2:
+        return []
+
+    unique_parts = []
+    seen = set()
+    for part in cleaned_parts:
+        key = part.lower()
+        if key not in seen:
+            seen.add(key)
+            unique_parts.append(part)
+    return unique_parts[:3]
+
+
 def heuristic_category(user_request: str) -> str:
     lowered = user_request.lower()
     for category, keywords in CATEGORY_KEYWORDS.items():
@@ -265,20 +314,63 @@ def _build_seed_urls(category: str, keyword: str) -> list[str]:
     urls = []
     for base_url in CATEGORY_CONFIG[category]["seed_urls"]:
         if "=" in base_url:
-            urls.append(base_url + encoded_keyword)
+            candidate = base_url + encoded_keyword
         elif category == "prices" and "vijaysales.com/search/" in base_url:
-            urls.append(base_url + encoded_keyword)
+            candidate = base_url + encoded_keyword
         else:
-            urls.append(base_url)
+            candidate = base_url
+
+        if _is_seed_url_relevant(candidate, category, keyword):
+            urls.append(candidate)
     return urls
 
 
-def _build_search_queries(category: str, keyword: str) -> list[str]:
+def _is_seed_url_relevant(url: str, category: str, keyword: str) -> bool:
+    if category != "prices":
+        return True
+
+    domain = _normalize_domain(url)
+    lower_keyword = keyword.lower()
+
+    brand_rules = {
+        "samsung.com": ["samsung", "galaxy"],
+    }
+
+    for brand_domain, required_terms in brand_rules.items():
+        if brand_domain in domain:
+            return any(term in lower_keyword for term in required_terms)
+
+    return True
+
+
+def _build_interleaved_seed_urls(category: str, keywords: list[str]) -> list[str]:
+    if not keywords:
+        return []
+
+    per_keyword_urls = [_build_seed_urls(category, keyword) for keyword in keywords]
+    interleaved = []
+
+    for index in range(max(len(urls) for urls in per_keyword_urls)):
+        for urls in per_keyword_urls:
+            if index < len(urls) and urls[index] not in interleaved:
+                interleaved.append(urls[index])
+
+    return interleaved
+
+
+def _build_search_queries(category: str, keyword: str, compare_targets: list[str] | None = None) -> list[str]:
     suffix = CATEGORY_CONFIG[category]["search_suffix"].strip()
     queries = [keyword]
+    compare_targets = compare_targets or []
 
     if suffix:
         queries.append(f"{keyword} {suffix}")
+
+    if compare_targets:
+        for target in compare_targets:
+            queries.append(target)
+            if suffix:
+                queries.append(f"{target} {suffix}")
 
     if category == "news":
         queries.append(f"{keyword} latest headlines")
@@ -288,6 +380,9 @@ def _build_search_queries(category: str, keyword: str) -> list[str]:
         queries.append(f"{keyword} full specifications")
     elif category == "prices":
         queries.append(f"{keyword} price in india")
+        if compare_targets:
+            for target in compare_targets:
+                queries.append(f"{target} price in india")
 
     seen = set()
     ordered = []
@@ -354,17 +449,21 @@ def _rank_candidates(category: str, keyword: str, candidates: list[str]) -> list
 
 def _split_primary_and_fallback(
     category: str,
-    urls: list[str]
+    urls: list[str],
+    allow_duplicate_domains: bool = False,
+    primary_limit_override: int | None = None,
+    fallback_limit_override: int | None = None,
 ) -> tuple[list[str], list[str]]:
     primary = []
     fallback = []
     primary_domains = set()
-    primary_limit = CATEGORY_CONFIG[category].get("primary_limit", PRIMARY_LIMIT)
-    fallback_limit = CATEGORY_CONFIG[category].get("fallback_limit", FALLBACK_LIMIT)
+    primary_limit = primary_limit_override or CATEGORY_CONFIG[category].get("primary_limit", PRIMARY_LIMIT)
+    fallback_limit = fallback_limit_override or CATEGORY_CONFIG[category].get("fallback_limit", FALLBACK_LIMIT)
 
     for url in urls:
         domain = _normalize_domain(url)
-        if len(primary) < primary_limit and domain not in primary_domains:
+        can_use_primary = allow_duplicate_domains or domain not in primary_domains
+        if len(primary) < primary_limit and can_use_primary:
             primary.append(url)
             primary_domains.add(domain)
             continue
@@ -378,31 +477,55 @@ def _split_primary_and_fallback(
 
 def select_sites(user_request: str) -> dict:
     category = get_category(user_request)
-    keyword = get_search_keyword(user_request)
-    if not keyword or keyword.strip().lower() == user_request.strip().lower():
-        keyword = get_search_keyword_fallback(user_request, category)
+    compare_targets = extract_compare_targets(user_request, category)
 
-    queries = _build_search_queries(category, keyword)
+    if compare_targets:
+        keyword = " vs ".join(compare_targets)
+    else:
+        keyword = get_search_keyword(user_request)
+        if not keyword or keyword.strip().lower() == user_request.strip().lower():
+            keyword = get_search_keyword_fallback(user_request, category)
+
+    queries = _build_search_queries(category, keyword, compare_targets)
     discovered_urls = []
     for query in queries:
         discovered_urls.extend(search_duckduckgo(query, max_results=8))
 
     ranked_urls = _rank_candidates(category, keyword, discovered_urls)
     primary_limit = CATEGORY_CONFIG[category].get("primary_limit", PRIMARY_LIMIT)
+    fallback_limit = CATEGORY_CONFIG[category].get("fallback_limit", FALLBACK_LIMIT)
 
+    seed_terms = compare_targets or [keyword]
+    seed_urls = (
+        _build_interleaved_seed_urls(category, seed_terms)
+        if len(seed_terms) > 1
+        else _build_seed_urls(category, seed_terms[0])
+    )
     if len(ranked_urls) < primary_limit:
-        ranked_urls.extend(
-            url for url in _build_seed_urls(category, keyword) if url not in ranked_urls
-        )
+        ranked_urls.extend(url for url in seed_urls if url not in ranked_urls)
 
-    primary, fallback = _split_primary_and_fallback(category, ranked_urls)
+    allow_duplicate_domains = category == "prices" and len(compare_targets) > 1
+    effective_primary_limit = primary_limit
+    effective_fallback_limit = fallback_limit
+    if allow_duplicate_domains:
+        effective_primary_limit = max(primary_limit, len(compare_targets) * 3)
+        effective_fallback_limit = max(fallback_limit, len(compare_targets) * 6)
+
+    primary, fallback = _split_primary_and_fallback(
+        category,
+        ranked_urls,
+        allow_duplicate_domains,
+        effective_primary_limit,
+        effective_fallback_limit,
+    )
 
     if not primary:
-        seed_urls = _build_seed_urls(category, keyword)
-        primary_limit = CATEGORY_CONFIG[category].get("primary_limit", PRIMARY_LIMIT)
-        fallback_limit = CATEGORY_CONFIG[category].get("fallback_limit", FALLBACK_LIMIT)
-        primary = seed_urls[:primary_limit]
-        fallback = seed_urls[primary_limit:primary_limit + fallback_limit]
+        primary = seed_urls[:effective_primary_limit]
+        fallback = seed_urls[effective_primary_limit:effective_primary_limit + effective_fallback_limit]
+
+    target_successes = CATEGORY_CONFIG[category].get("target_successes", 2)
+    if category == "prices" and len(compare_targets) > 1:
+        target_successes = max(target_successes, min(len(primary) + len(fallback), len(compare_targets) * 3))
 
     return {
         "category": category,
@@ -410,5 +533,6 @@ def select_sites(user_request: str) -> dict:
         "queries": queries,
         "primary": primary,
         "fallback": fallback,
-        "target_successes": CATEGORY_CONFIG[category].get("target_successes", 2),
+        "target_successes": target_successes,
+        "compare_targets": compare_targets,
     }

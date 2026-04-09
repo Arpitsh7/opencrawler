@@ -12,6 +12,7 @@ STRICT FORMAT RULES:
   [Site Name]: data found
 - Keep each source concise: at most 3 bullet points or 1 short summary
 - If extracting prices, always show: [Site]: Product - Price
+- If the user asked to compare multiple products, keep the products separate and include entries for each requested product when present in that source
 - If no relevant data is present for a site, write exactly: [Site Name]: No data found
 - Do not mention blocking, security, scraping problems, or reasons unless the user explicitly asked about that
 - Never invent missing specifications, prices, or explanations
@@ -33,6 +34,12 @@ If it is prices, format as:
 [Site Name]:
 - Product name - Price
 - Product name - Price
+
+If the user is comparing products:
+- keep the requested products separate
+- do not collapse multiple products into one generic summary
+- prefer one bullet per requested product when available
+- do not output more than 3 bullets for a single source
 
 If it is specifications, list only concrete fields that are present in the scraped text.
 Never output more than 3 bullets for a single source."""
