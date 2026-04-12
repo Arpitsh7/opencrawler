@@ -394,10 +394,11 @@
 
         .results-grid {
             display: grid;
-            grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+            grid-template-columns: minmax(0, 1.2fr) minmax(280px, min(36vw, 420px));
             gap: 24px;
             margin-top: 26px;
             align-items: start;
+            min-width: 0;
         }
 
         .results-shell,
@@ -405,6 +406,12 @@
         .empty-shell {
             border-radius: var(--radius-xl);
             padding: 28px;
+            min-width: 0;
+        }
+
+        .results-shell,
+        .trace-shell {
+            overflow-x: hidden;
         }
 
         .shell-header {
@@ -579,6 +586,55 @@
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
+            min-width: 0;
+            max-width: 100%;
+        }
+
+        .trace-list--scrape {
+            flex-direction: column;
+            flex-wrap: nowrap;
+            align-items: stretch;
+        }
+
+        .trace-scrape-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 6px;
+            padding: 10px 12px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.55);
+            border: 1px solid rgba(17, 19, 21, 0.07);
+            max-width: 100%;
+            overflow: hidden;
+        }
+
+        .trace-scrape-host {
+            font-size: 12px;
+            font-weight: 800;
+            color: var(--ink);
+            word-break: break-word;
+            overflow-wrap: anywhere;
+        }
+
+        .trace-scrape-meta {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .trace-scrape-detail {
+            flex: 1 1 100%;
+            min-width: 0;
+            margin: 0;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--muted);
+            line-height: 1.45;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            white-space: normal;
         }
 
         .tag,
@@ -590,6 +646,9 @@
             background: rgba(17, 19, 21, 0.05);
             color: var(--ink-soft);
             border: 1px solid rgba(17, 19, 21, 0.06);
+            max-width: 100%;
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         .trace-pill.ok { background: rgba(25, 135, 84, 0.1); color: var(--success); }
@@ -803,7 +862,7 @@
                     </div>
                     <div class="trace-card">
                         <h3>Scrape Outcomes</h3>
-                        <div id="scrapeTags" class="trace-list"></div>
+                        <div id="scrapeTags" class="trace-list trace-list--scrape"></div>
                     </div>
                 </div>
             </aside>
@@ -880,6 +939,12 @@
             el.innerHTML = values.map(value => `<span class="tag">${safeHtml(value)}</span>`).join('');
         }
 
+        function compactTraceDetail(value) {
+            const t = normalizeText(String(value || '').trim());
+            if (t.length <= 200) return t;
+            return `${t.slice(0, 197).trim()}…`;
+        }
+
         function renderScrapeSummary(items) {
             const el = document.getElementById('scrapeTags');
             if (!items || !items.length) {
@@ -889,8 +954,20 @@
             el.innerHTML = items.map(item => {
                 const host = hostnameFromUrl(item.url || 'unknown');
                 const status = item.status || 'unknown';
-                const detail = item.error ? ` · ${item.error}` : item.text_length ? ` · ${item.text_length} chars` : '';
-                return `<span class="trace-pill ${safeHtml(status)}">${safeHtml(host)} · ${safeHtml(status)}${safeHtml(detail)}</span>`;
+                const err = item.error ? compactTraceDetail(item.error) : '';
+                const len = item.text_length ? `${item.text_length} chars` : '';
+                const detail = err ? err : len;
+                const detailLine = detail
+                    ? `<p class="trace-scrape-detail">${safeHtml(detail)}</p>`
+                    : '';
+                return `
+                    <div class="trace-scrape-row">
+                        <div class="trace-scrape-host">${safeHtml(host)}</div>
+                        <div class="trace-scrape-meta">
+                            <span class="trace-pill ${safeHtml(status)}">${safeHtml(status)}</span>
+                        </div>
+                        ${detailLine}
+                    </div>`;
             }).join('');
         }
 

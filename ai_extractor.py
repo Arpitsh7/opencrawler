@@ -127,10 +127,10 @@ def extract_structured(
     host_lines = ", ".join(allowed) if allowed else "use hostnames from SOURCE headers"
 
     system_json = """You are a web data extraction assistant. Output ONLY valid JSON, no markdown.
-Never invent facts. Use only hostnames from the allowed list when possible.
-If a source has nothing useful for the user request, set no_data to true and omit bullets."""
+Never invent prices or specs: only use facts visible in the scraped text.
+You MUST include exactly one JSON object per hostname in the allowed list (same count as allowed hostnames)."""
 
-    user_json = f"""Allowed hostnames (use these exact strings in "host"): {host_lines}
+    user_json = f"""Allowed hostnames — you MUST output one "sources" entry for EACH of these (use the string exactly as listed): {host_lines}
 
 SCRAPED CONTENT:
 {page_text}
@@ -151,9 +151,10 @@ Return JSON with this exact shape:
 }}
 
 Rules:
-- At most 3 bullets per source.
-- host must be one of the allowed hostnames when possible.
-- no_data true means skip that source entirely in downstream UI."""
+- The "sources" array length MUST equal the number of allowed hostnames. One entry per host, no duplicates.
+- At most 3 bullets per source. If a host has no useful facts for the request, set "no_data": true, "bullets": [], "summary": "".
+- host must match one of the allowed hostnames (no www. prefix).
+- Prefer bullets over long summaries for prices (Product — Price)."""
 
     try:
         response = requests.post(

@@ -246,6 +246,38 @@ async def _resolve_detail_page(page, url: str) -> str | None:
     return None
 
 
+async def _block_heavy_assets(page, url: str) -> None:
+    lower = url.lower()
+    if not any(
+        d in lower
+        for d in (
+            "amazon.in",
+            "vijaysales.com",
+            "flipkart.com",
+            "reliancedigital.in",
+            "91mobiles.com",
+        )
+    ):
+        return
+
+    async def _handler(route):
+        try:
+            if route.request.resource_type in ("image", "media", "font"):
+                await route.abort()
+            else:
+                await route.continue_()
+        except Exception:
+            try:
+                await route.continue_()
+            except Exception:
+                pass
+
+    try:
+        await page.route("**/*", _handler)
+    except Exception:
+        pass
+
+
 async def _goto_resilient(page, url: str, timeout_ms: int) -> None:
     try:
         await page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
@@ -271,8 +303,13 @@ async def scrape_url_to_text(browser: "Browser", url: str, timeout_ms: int, wait
     page = await context.new_page()
     try:
         nav_timeout = max(timeout_ms, 35000)
+        await _block_heavy_assets(page, url)
         await _goto_resilient(page, url, nav_timeout)
-        await page.wait_for_timeout(settle_ms)
+        listing = any(
+            frag in url.lower()
+            for frag in ("/s?k=", "/search", "search?", "/search/", "search_result", "searchb?")
+        )
+        await page.wait_for_timeout(1000 if listing else settle_ms)
 
         detail_url = await _resolve_detail_page(page, url)
         if not detail_url:

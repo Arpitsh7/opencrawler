@@ -252,6 +252,39 @@ def _resolve_detail_page(page, url: str) -> str | None:
     return None
 
 
+def _block_heavy_assets(page, url: str) -> None:
+    """Speed up slow retail pages (fewer images/fonts) to reduce subprocess timeouts."""
+    lower = url.lower()
+    if not any(
+        d in lower
+        for d in (
+            "amazon.in",
+            "vijaysales.com",
+            "flipkart.com",
+            "reliancedigital.in",
+            "91mobiles.com",
+        )
+    ):
+        return
+
+    def _route_handler(route):
+        try:
+            if route.request.resource_type in ("image", "media", "font"):
+                route.abort()
+            else:
+                route.continue_()
+        except Exception:
+            try:
+                route.continue_()
+            except Exception:
+                pass
+
+    try:
+        page.route("**/*", _route_handler)
+    except Exception:
+        pass
+
+
 def _goto_resilient(page, url: str, timeout_ms: int) -> None:
     try:
         page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
@@ -277,8 +310,13 @@ def scrape(url: str) -> str:
         )
         page = context.new_page()
         try:
+            _block_heavy_assets(page, url)
             _goto_resilient(page, url, timeout_ms)
-            page.wait_for_timeout(settle_ms)
+            listing = any(
+                frag in url.lower()
+                for frag in ("/s?k=", "/search", "search?", "/search/", "search_result", "searchb?")
+            )
+            page.wait_for_timeout(1000 if listing else settle_ms)
 
             detail_url = _resolve_detail_page(page, url)
             if not detail_url:

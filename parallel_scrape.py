@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from config import Settings, get_settings
 from multi_scraper import TARGET_SUCCESSFUL_PAGES, _validate_scraped_text
 from scraper_async import scrape_url_to_text
+from trace_format import format_scrape_error
 
 if TYPE_CHECKING:
     from playwright.async_api import Browser
@@ -25,7 +26,7 @@ async def _scrape_one(browser: "Browser", url: str, category: str, keyword: str,
         return {"url": url, "status": "ok", "text": text, "error": ""}
     except Exception as exc:
         print(f"Exception scraping {url}: {exc}")
-        return {"url": url, "status": "error", "text": "", "error": str(exc)}
+        return {"url": url, "status": "error", "text": "", "error": format_scrape_error(str(exc))}
 
 
 async def scrape_all_async(browser: "Browser", sites: dict, settings: Settings | None = None) -> list[dict]:

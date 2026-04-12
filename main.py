@@ -23,6 +23,7 @@ from content_window import select_relevant_excerpt
 from multi_scraper import scrape_all
 from parallel_scrape import scrape_all_async
 from site_selector import select_sites
+from trace_format import format_scrape_error
 
 templates = Jinja2Templates(directory="templates")
 MOJIBAKE_REPLACEMENTS = {
@@ -54,24 +55,7 @@ def normalize_site_label(value: str) -> str:
 
 
 def summarize_error(value: str) -> str:
-    text = clean_text(value or "").strip()
-    if not text:
-        return ""
-
-    lowered = text.lower()
-    if "timeout" in lowered:
-        return "timeout"
-    if "temporary_error" in lowered:
-        return "temporary_error"
-    if "blocked" in lowered or "access denied" in lowered:
-        return "blocked"
-    if "too_short" in lowered:
-        return "too_short"
-    if "page not found" in lowered or "not found" in lowered:
-        return "not_found"
-
-    first_line = text.splitlines()[0].strip()
-    return first_line[:80]
+    return format_scrape_error(clean_text(value or ""))
 
 
 def split_summary_into_items(summary: str) -> tuple[str, list[str]]:
@@ -176,6 +160,88 @@ def build_source_by_host(urls: list[str]) -> dict[str, str]:
         index[host] = url
         index[bare] = url
     return index
+
+
+def _host_bare_from_url(url: str) -> str:
+    try:
+        host = urllib.parse.urlparse(url).netloc.lower()
+    except Exception:
+        return ""
+    if not host:
+        return ""
+    return host[4:] if host.startswith("www.") else host
+
+
+def parse_source_excerpts(combined_text: str) -> dict[str, str]:
+    """Map bare hostname (no www.) to excerpt for each --- SOURCE: --- block."""
+    out: dict[str, str] = {}
+    if not combined_text:
+        return out
+    pattern = re.compile(r"--- SOURCE:\s*(.+?)\s*---\s*\n(.*?)(?=\n\n--- SOURCE:|\Z)", re.DOTALL)
+    for m in pattern.finditer(combined_text):
+        raw_host = (m.group(1) or "").strip()
+        body = (m.group(2) or "").strip()
+        key = raw_host.lower()
+        if key.startswith("www."):
+            key = key[4:]
+        if key:
+            out[key] = body
+    return out
+
+
+def heuristic_price_lines(text: str, limit: int = 3) -> list[str]:
+    items: list[str] = []
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or len(line) > 240:
+            continue
+        low = line.lower()
+        if "₹" in line or "rs." in low or "inr" in low:
+            items.append(line)
+            continue
+        if "price" in low and any(ch.isdigit() for ch in line):
+            items.append(line)
+        if len(items) >= limit:
+            break
+    return items
+
+
+def augment_sections_for_missing_scrapes(
+    sections: list[dict],
+    successful_urls: list[str],
+    combined_text: str,
+    category: str,
+) -> list[dict]:
+    """
+    The LLM often returns fewer sources than pages we actually scraped.
+    Add one section per missing host so the UI matches successful scrapes.
+    """
+    excerpts = parse_source_excerpts(combined_text)
+    covered: set[str] = set()
+    for sec in sections:
+        site = normalize_site_label(sec.get("site", "")).lower().replace("www.", "")
+        if site:
+            covered.add(site)
+
+    augmented = list(sections)
+    for url in successful_urls:
+        key = _host_bare_from_url(url)
+        if not key or key in covered:
+            continue
+        body = excerpts.get(key, "")
+        items: list[str] = []
+        if category == "prices" and body:
+            items = heuristic_price_lines(body)
+        summary = ""
+        if not items:
+            summary = (
+                "The model did not return bullets for this source, but the page was scraped successfully. "
+                "Open the link or use “Show raw output” for the full excerpt."
+            )
+        augmented.append({"site": key, "summary": summary, "items": items})
+        covered.add(key)
+
+    return augmented
 
 
 def _env_truthy(name: str) -> bool:
@@ -311,6 +377,14 @@ async def agent(request: Request, data: AgentRequest):
             result_sections = consolidate_sections(json_sections)
         else:
             result_sections = parse_extracted_sections(result)
+
+        result_sections = augment_sections_for_missing_scrapes(
+            result_sections,
+            successful_sites,
+            combined_text,
+            sites["category"],
+        )
+        result_sections = consolidate_sections(result_sections)
 
         source_by_host = build_source_by_host(successful_sites)
 

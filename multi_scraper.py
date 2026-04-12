@@ -1,11 +1,13 @@
-import subprocess
-import sys
 import os
 import re
+import subprocess
+import sys
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 
+from trace_format import format_scrape_error
+
 MIN_TEXT_LENGTH = 280
-SCRAPER_SUBPROCESS_TIMEOUT_S = 60
+SCRAPER_SUBPROCESS_TIMEOUT_S = 75
 MAX_WORKERS = 3
 TARGET_SUCCESSFUL_PAGES = 2
 BLOCK_INDICATORS = [
@@ -146,9 +148,9 @@ def scrape_one(url: str, category: str = "general", keyword: str = "") -> dict:
             cwd=base_dir,
         )
         if result.returncode != 0:
-            error_text = (result.stderr or result.stdout).strip()
-            print(f"Failed (returncode {result.returncode}): {url}")
-            return {"url": url, "status": "error", "text": "", "error": error_text}
+            raw_err = (result.stderr or result.stdout).strip()
+            print(f"Failed (returncode {result.returncode}): {url}\n{raw_err[:500]}")
+            return {"url": url, "status": "error", "text": "", "error": format_scrape_error(raw_err)}
 
         text = result.stdout.strip()
         status, error = _validate_scraped_text(url, text, category, keyword)
@@ -160,8 +162,9 @@ def scrape_one(url: str, category: str = "general", keyword: str = "") -> dict:
         return {"url": url, "status": "ok", "text": text, "error": ""}
 
     except Exception as e:
-        print(f"Exception scraping {url}: {e}")
-        return {"url": url, "status": "error", "text": "", "error": str(e)}
+        raw = str(e)
+        print(f"Exception scraping {url}: {raw}")
+        return {"url": url, "status": "error", "text": "", "error": format_scrape_error(raw)}
 
 def scrape_all(sites: dict) -> list[dict]:
     category = sites.get("category", "general")
