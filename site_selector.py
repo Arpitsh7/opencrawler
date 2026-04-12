@@ -3,6 +3,7 @@ import urllib.parse
 
 import requests
 
+from config import get_settings
 from search_engine import search_duckduckgo
 
 CATEGORY_CONFIG = {
@@ -156,15 +157,16 @@ CATEGORY_KEYWORDS = {
 
 
 def _ollama_generate(prompt: str, default: str) -> str:
+    settings = get_settings()
     try:
         response = requests.post(
-            "http://localhost:11434/api/generate",
+            settings.ollama_generate_url,
             json={
-                "model": "llama3",
+                "model": settings.ollama_model,
                 "prompt": prompt,
                 "stream": False,
             },
-            timeout=30,
+            timeout=settings.ollama_keyword_timeout_s,
         )
         response.raise_for_status()
         value = response.json().get("response", "").strip()
@@ -426,6 +428,12 @@ def _score_url(url: str, category: str, keyword: str) -> int:
     elif category == "prices":
         if any(fragment in url_text for fragment in ["price", "buy", "product", "p=", "search"]):
             score += 15
+        path_lower = parsed.path.lower()
+        full_lower = url.lower()
+        if "/dp/" in full_lower or "/gp/product/" in full_lower:
+            score += 45
+        elif "/p/" in path_lower or "/product" in path_lower or "pid=" in url_text:
+            score += 35
 
     if any(fragment in url_text for fragment in ["search", "results"]):
         score += 5
@@ -444,7 +452,8 @@ def _rank_candidates(category: str, keyword: str, candidates: list[str]) -> list
         scored.append((_score_url(url, category, keyword), url))
 
     scored.sort(key=lambda item: item[0], reverse=True)
-    return [url for score, url in scored if score > 0]
+    # Keep all discovered URLs (even score 0) so generic queries still get DDG hits, not only seeds.
+    return [url for _score, url in scored]
 
 
 def _split_primary_and_fallback(
@@ -488,8 +497,15 @@ def select_sites(user_request: str) -> dict:
 
     queries = _build_search_queries(category, keyword, compare_targets)
     discovered_urls = []
+    settings = get_settings()
     for query in queries:
-        discovered_urls.extend(search_duckduckgo(query, max_results=8))
+        discovered_urls.extend(
+            search_duckduckgo(
+                query,
+                max_results=settings.search_max_results_per_query,
+                max_urls_per_domain=settings.search_urls_per_domain,
+            )
+        )
 
     ranked_urls = _rank_candidates(category, keyword, discovered_urls)
     primary_limit = CATEGORY_CONFIG[category].get("primary_limit", PRIMARY_LIMIT)

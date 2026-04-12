@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -811,6 +811,7 @@
     </div>
     <script>
         let lastExtracted = '';
+        let lastResultSections = [];
         let rawVisible = false;
 
         function setQuery(value) {
@@ -929,9 +930,20 @@
                 .trim();
         }
 
-        function findSourceUrl(siteLabel, sites) {
-            const cleanLabel = cleanSiteLabel(siteLabel).toLowerCase();
-            return (sites || []).find(url => hostnameFromUrl(url).toLowerCase().includes(cleanLabel.replace(/^www\./, '')));
+        function findSourceUrl(siteLabel, sites, sourceByHost) {
+            const cleanLabel = cleanSiteLabel(siteLabel).toLowerCase().replace(/^www\./, '');
+            if (sourceByHost && typeof sourceByHost === 'object') {
+                const candidates = [cleanLabel, 'www.' + cleanLabel];
+                for (const key of candidates) {
+                    if (sourceByHost[key]) return sourceByHost[key];
+                }
+                for (const [host, url] of Object.entries(sourceByHost)) {
+                    const h = String(host).toLowerCase().replace(/^www\./, '');
+                    if (!h) continue;
+                    if (h === cleanLabel || h.includes(cleanLabel) || cleanLabel.includes(h)) return url;
+                }
+            }
+            return (sites || []).find(u => hostnameFromUrl(u).toLowerCase().replace(/^www\./, '') === cleanLabel);
         }
 
         function mergeSectionsBySite(sections) {
@@ -1011,7 +1023,7 @@
                 const items = (section.items || []).filter(Boolean).slice(0, 3);
                 const badge = items.length ? `${items.length} extracted` : 'single summary';
                 const siteLabel = cleanSiteLabel(section.site);
-                const siteUrl = findSourceUrl(siteLabel, data.sites_scraped || []);
+                const siteUrl = findSourceUrl(siteLabel, data.sites_scraped || [], data.source_by_host || null);
                 const title = siteUrl
                     ? `<a class="source-link" href="${safeHtml(siteUrl)}" target="_blank" rel="noopener noreferrer">${safeHtml(siteLabel)}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg></a>`
                     : safeHtml(siteLabel);
@@ -1047,7 +1059,9 @@
         }
 
         function exportCSV() {
-            const sections = parseSectionsFromRaw(lastExtracted);
+            const sections = (lastResultSections && lastResultSections.length)
+                ? lastResultSections
+                : parseSectionsFromRaw(lastExtracted);
             const rows = [['site', 'summary_or_item']];
             for (const section of sections) {
                 if (section.summary) rows.push([section.site, section.summary]);
@@ -1108,6 +1122,7 @@
 
                 if (data.status === 'success') {
                     lastExtracted = normalizeText(data.extracted || '');
+                    lastResultSections = Array.isArray(data.result_sections) ? data.result_sections : [];
                     document.getElementById('rawBox').textContent = lastExtracted;
                     renderResults(data);
                     setStep(4, 'Packaging results', 'Source cards are ready to review.', 'done');

@@ -26,7 +26,7 @@ def is_blocked(url: str) -> bool:
         return True
     return False
 
-def search_duckduckgo(query: str, max_results: int = 6) -> list[str]:
+def search_duckduckgo(query: str, max_results: int = 6, max_urls_per_domain: int = 1) -> list[str]:
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
     }
@@ -38,7 +38,8 @@ def search_duckduckgo(query: str, max_results: int = 6) -> list[str]:
         soup = BeautifulSoup(response.text, "html.parser")
 
         urls = []
-        seen_domains = set()
+        seen_urls: set[str] = set()
+        domain_counts: dict[str, int] = {}
 
         for result in soup.find_all("a", class_="result__a"):
             href = result.get("href", "")
@@ -57,15 +58,23 @@ def search_duckduckgo(query: str, max_results: int = 6) -> list[str]:
                 print(f"Skipping: {href}")
                 continue
 
+            if href in seen_urls:
+                continue
+
             try:
-                domain = href.split("/")[2]
-            except:
+                domain = href.split("/")[2].lower()
+            except Exception:
                 continue
 
-            if domain in seen_domains:
+            if domain.startswith("www."):
+                domain = domain[4:]
+
+            used = domain_counts.get(domain, 0)
+            if used >= max_urls_per_domain:
                 continue
 
-            seen_domains.add(domain)
+            domain_counts[domain] = used + 1
+            seen_urls.add(href)
             urls.append(href)
             print(f"Found: {href}")
 

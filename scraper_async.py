@@ -1,19 +1,14 @@
-import sys
+"""Async Playwright scraping (shared browser, one context per page)."""
+
+from __future__ import annotations
+
 import urllib.parse
-from playwright.sync_api import sync_playwright
+from typing import TYPE_CHECKING
 
-MAX_TEXT_LENGTH = 12000
+from scraper import USER_AGENT
 
-USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-)
-
-CHROMIUM_ARGS = [
-    "--disable-blink-features=AutomationControlled",
-    "--disable-dev-shm-usage",
-    "--no-sandbox",
-]
+if TYPE_CHECKING:
+    from playwright.async_api import Browser
 
 
 def _extract_query_tokens(url: str, *param_names: str) -> list[str]:
@@ -29,9 +24,9 @@ def _extract_query_tokens(url: str, *param_names: str) -> list[str]:
     return tokens
 
 
-def _find_best_matching_link(page, url: str, allowed_domains: list[str], exclude_fragments: list[str], query_params: list[str]) -> str | None:
+async def _find_best_matching_link(page, url: str, allowed_domains: list[str], exclude_fragments: list[str], query_params: list[str]) -> str | None:
     search_tokens = _extract_query_tokens(url, *query_params)
-    candidates = page.eval_on_selector_all(
+    candidates = await page.eval_on_selector_all(
         "a[href]",
         """els => els.map(e => ({
             href: e.href,
@@ -76,12 +71,12 @@ def _find_best_matching_link(page, url: str, allowed_domains: list[str], exclude
     return scored[0][1]
 
 
-def _extract_best_gsmarena_match(page, url: str) -> str | None:
+async def _extract_best_gsmarena_match(page, url: str) -> str | None:
     parsed = urllib.parse.urlparse(url)
     query = urllib.parse.parse_qs(parsed.query)
     search_text = " ".join(query.get("sName", []))
     search_tokens = [token.lower() for token in search_text.replace("+", " ").split() if token]
-    hrefs = page.eval_on_selector_all(
+    hrefs = await page.eval_on_selector_all(
         "a[href]",
         "els => els.map(e => e.href).filter(Boolean)",
     )
@@ -97,7 +92,7 @@ def _extract_best_gsmarena_match(page, url: str) -> str | None:
         for token in search_tokens:
             if token in href_lower:
                 score += 10
-        if score > 0 and href not in [candidate[1] for candidate in candidates]:
+        if score > 0 and href not in [c[1] for c in candidates]:
             candidates.append((score, href))
 
     if not candidates:
@@ -107,9 +102,9 @@ def _extract_best_gsmarena_match(page, url: str) -> str | None:
     return candidates[0][1]
 
 
-def _first_href_js(page, script: str) -> str | None:
+async def _first_href_js(page, script: str) -> str | None:
     try:
-        href = page.evaluate(script)
+        href = await page.evaluate(script)
         if href and isinstance(href, str) and href.startswith("http"):
             return href
     except Exception:
@@ -117,12 +112,11 @@ def _first_href_js(page, script: str) -> str | None:
     return None
 
 
-def _follow_retail_listing(page, url: str) -> str | None:
-    """Open first plausible product/detail link from retailer search results."""
+async def _follow_retail_listing(page, url: str) -> str | None:
     lower = url.lower()
 
     if "amazon.in" in lower and ("/s?" in lower or "/s/" in lower or "/gp/browse" in lower):
-        return _first_href_js(
+        return await _first_href_js(
             page,
             """() => {
               const links = Array.from(document.querySelectorAll('a[href*="/dp/"], a[href*="/gp/product/"]'));
@@ -134,7 +128,7 @@ def _follow_retail_listing(page, url: str) -> str | None:
         )
 
     if "flipkart.com" in lower and "search" in lower:
-        return _first_href_js(
+        return await _first_href_js(
             page,
             """() => {
               const links = Array.from(document.querySelectorAll('a[href*="/p/"]'));
@@ -146,7 +140,7 @@ def _follow_retail_listing(page, url: str) -> str | None:
         )
 
     if "samsung.com" in lower and "search" in lower:
-        return _first_href_js(
+        return await _first_href_js(
             page,
             """() => {
               const links = Array.from(document.querySelectorAll('a[href*="samsung.com"]'));
@@ -160,7 +154,7 @@ def _follow_retail_listing(page, url: str) -> str | None:
         )
 
     if "reliancedigital.in" in lower and "search" in lower:
-        return _first_href_js(
+        return await _first_href_js(
             page,
             """() => {
               const links = Array.from(document.querySelectorAll('a[href*="reliancedigital.in"]'));
@@ -173,7 +167,7 @@ def _follow_retail_listing(page, url: str) -> str | None:
         )
 
     if "croma.com" in lower and "search" in lower:
-        return _first_href_js(
+        return await _first_href_js(
             page,
             """() => {
               const links = Array.from(document.querySelectorAll('a[href*="croma.com"]'));
@@ -186,7 +180,7 @@ def _follow_retail_listing(page, url: str) -> str | None:
         )
 
     if "vijaysales.com" in lower and "search" in lower:
-        return _first_href_js(
+        return await _first_href_js(
             page,
             """() => {
               const links = Array.from(document.querySelectorAll('a[href*="vijaysales.com"]'));
@@ -199,7 +193,7 @@ def _follow_retail_listing(page, url: str) -> str | None:
         )
 
     if "smartprix.com" in lower:
-        return _first_href_js(
+        return await _first_href_js(
             page,
             """() => {
               const links = Array.from(document.querySelectorAll('a[href*="smartprix.com"]'));
@@ -212,7 +206,7 @@ def _follow_retail_listing(page, url: str) -> str | None:
         )
 
     if "91mobiles.com" in lower and "search" in lower:
-        return _first_href_js(
+        return await _first_href_js(
             page,
             """() => {
               const links = Array.from(document.querySelectorAll('a[href*="91mobiles.com"]'));
@@ -227,12 +221,12 @@ def _follow_retail_listing(page, url: str) -> str | None:
     return None
 
 
-def _resolve_detail_page(page, url: str) -> str | None:
+async def _resolve_detail_page(page, url: str) -> str | None:
     if "gsmarena.com/results.php3" in url:
-        return _extract_best_gsmarena_match(page, url)
+        return await _extract_best_gsmarena_match(page, url)
 
     if "keepinspiring.me/" in url and "?s=" in url:
-        return _find_best_matching_link(
+        return await _find_best_matching_link(
             page,
             url,
             allowed_domains=["keepinspiring.me/"],
@@ -241,7 +235,7 @@ def _resolve_detail_page(page, url: str) -> str | None:
         )
 
     if "inspiringquotes.com/search" in url:
-        return _find_best_matching_link(
+        return await _find_best_matching_link(
             page,
             url,
             allowed_domains=["inspiringquotes.com/"],
@@ -252,67 +246,48 @@ def _resolve_detail_page(page, url: str) -> str | None:
     return None
 
 
-def _goto_resilient(page, url: str, timeout_ms: int) -> None:
+async def _goto_resilient(page, url: str, timeout_ms: int) -> None:
     try:
-        page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
+        await page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
     except Exception:
-        page.goto(url, wait_until="commit", timeout=min(timeout_ms, 25000))
+        await page.goto(url, wait_until="commit", timeout=min(timeout_ms, 25000))
 
 
-def scrape(url: str) -> str:
-    timeout_ms = 45000
-    settle_ms = 2200
+MAX_TEXT_LENGTH = 12000
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True, args=CHROMIUM_ARGS)
-        context = browser.new_context(
-            user_agent=USER_AGENT,
-            viewport={"width": 1365, "height": 900},
-            locale="en-IN",
-            timezone_id="Asia/Kolkata",
-            extra_http_headers={
-                "Accept-Language": "en-IN,en;q=0.9",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            },
-        )
-        page = context.new_page()
-        try:
-            _goto_resilient(page, url, timeout_ms)
-            page.wait_for_timeout(settle_ms)
 
-            detail_url = _resolve_detail_page(page, url)
-            if not detail_url:
-                detail_url = _follow_retail_listing(page, url)
-            if detail_url and detail_url != url:
-                _goto_resilient(page, detail_url, timeout_ms)
-                page.wait_for_timeout(settle_ms)
+async def scrape_url_to_text(browser: "Browser", url: str, timeout_ms: int, wait_ms: int) -> str:
+    settle_ms = max(wait_ms, 2000)
+    context = await browser.new_context(
+        user_agent=USER_AGENT,
+        viewport={"width": 1365, "height": 900},
+        locale="en-IN",
+        timezone_id="Asia/Kolkata",
+        extra_http_headers={
+            "Accept-Language": "en-IN,en;q=0.9",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        },
+    )
+    page = await context.new_page()
+    try:
+        nav_timeout = max(timeout_ms, 35000)
+        await _goto_resilient(page, url, nav_timeout)
+        await page.wait_for_timeout(settle_ms)
 
-            text = page.evaluate(
-                """() => {
+        detail_url = await _resolve_detail_page(page, url)
+        if not detail_url:
+            detail_url = await _follow_retail_listing(page, url)
+        if detail_url and detail_url != url:
+            await _goto_resilient(page, detail_url, nav_timeout)
+            await page.wait_for_timeout(settle_ms)
+
+        text = await page.evaluate(
+            """() => {
                 document.querySelectorAll('script,style,noscript').forEach(e => e.remove());
                 return document.body ? document.body.innerText : '';
             }"""
-            )
-            lines = [line.strip() for line in text.splitlines() if line.strip()]
-            return "\n".join(lines)[:MAX_TEXT_LENGTH]
-        finally:
-            context.close()
-            browser.close()
-
-
-def _scrape_sync(url: str) -> str:
-    return scrape(url)
-
-
-if __name__ == "__main__":
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    if len(sys.argv) < 2:
-        print("Usage: scraper.py <url>", file=sys.stderr)
-        sys.exit(2)
-    url = sys.argv[1]
-    try:
-        print(scrape(url))
-    except Exception as exc:
-        print(f"SCRAPE_ERROR: {exc}", file=sys.stderr)
-        sys.exit(1)
+        )
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+        return "\n".join(lines)[:MAX_TEXT_LENGTH]
+    finally:
+        await context.close()

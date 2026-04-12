@@ -4,7 +4,8 @@ import os
 import re
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 
-MIN_TEXT_LENGTH = 300
+MIN_TEXT_LENGTH = 280
+SCRAPER_SUBPROCESS_TIMEOUT_S = 60
 MAX_WORKERS = 3
 TARGET_SUCCESSFUL_PAGES = 2
 BLOCK_INDICATORS = [
@@ -43,11 +44,11 @@ NO_RESULTS_SIGNALS = [
     "page not found",
     "try a new search",
 ]
+# Keep specific — generic phrases like "service unavailable" appear in site footers.
 TRANSIENT_ERROR_SIGNALS = [
     "it's rush hour and traffic is piling up on that page",
     "please try again in a short while",
     "temporarily unavailable",
-    "service unavailable",
 ]
 
 
@@ -62,6 +63,8 @@ def _is_no_results_page(text: str) -> bool:
 
 
 def _is_transient_error_page(text: str) -> bool:
+    if len(text) > 3200:
+        return False
     lower_text = text.lower()
     return any(signal in lower_text for signal in TRANSIENT_ERROR_SIGNALS)
 
@@ -76,7 +79,19 @@ def _looks_like_price_page(text: str, keyword: str) -> bool:
     lower_text = text.lower()
     signal_hits = sum(1 for signal in PRICE_SIGNALS if signal in lower_text)
     token_hits = _keyword_token_matches(text, keyword)
-    return signal_hits >= 2 and token_hits >= 1
+    if signal_hits >= 2 and token_hits >= 1:
+        return True
+    if signal_hits >= 1 and token_hits >= 1 and len(text) >= 100:
+        return True
+    return False
+
+
+def _looks_like_search_or_listing(url: str) -> bool:
+    lower = url.lower()
+    return any(
+        fragment in lower
+        for fragment in ("/s?k=", "/search", "search?q", "/s/", "/sr?", "/gp/browse", "search_result", "searchb?")
+    )
 
 
 def _looks_like_thin_search_page(url: str, text: str, category: str) -> bool:
@@ -105,7 +120,11 @@ def _validate_scraped_text(url: str, text: str, category: str, keyword: str) -> 
     if category == "prices" and _looks_like_price_page(text, keyword):
         return "ok", ""
 
-    if len(text) < MIN_TEXT_LENGTH:
+    min_len = MIN_TEXT_LENGTH
+    if category == "prices" and _looks_like_search_or_listing(url) and _looks_like_price_page(text, keyword):
+        min_len = 120
+
+    if len(text) < min_len:
         return "empty", "too_short"
 
     if _looks_like_thin_search_page(url, text, category):
@@ -123,8 +142,8 @@ def scrape_one(url: str, category: str = "general", keyword: str = "") -> dict:
             text=True,
             encoding="utf-8",
             errors="replace",
-            timeout=30,
-            cwd=base_dir
+            timeout=SCRAPER_SUBPROCESS_TIMEOUT_S,
+            cwd=base_dir,
         )
         if result.returncode != 0:
             error_text = (result.stderr or result.stdout).strip()

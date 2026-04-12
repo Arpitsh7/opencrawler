@@ -1,19 +1,95 @@
+"""Structured extraction via Ollama (JSON when supported, with plain-text fallback)."""
+
+from __future__ import annotations
+
+import json
+import re
+import urllib.parse
+
 import requests
 
+from config import Settings, get_settings
 
-def extract_with_ai(page_text: str, user_prompt: str) -> str:
+
+def _normalize_host(url_or_host: str) -> str:
+    s = (url_or_host or "").strip().lower()
+    if "://" in s:
+        try:
+            s = urllib.parse.urlparse(s).netloc.lower()
+        except Exception:
+            return ""
+    if s.startswith("www."):
+        s = s[4:]
+    return s
+
+
+def _allowed_hosts_from_urls(urls: list[str]) -> list[str]:
+    hosts: set[str] = set()
+    for url in urls:
+        h = _normalize_host(url)
+        if h:
+            hosts.add(h)
+    return sorted(hosts)
+
+
+def _parse_json_response(raw: str) -> dict | None:
+    raw = (raw or "").strip()
+    if not raw:
+        return None
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        pass
+    match = re.search(r"\{[\s\S]*\}", raw)
+    if match:
+        try:
+            return json.loads(match.group(0))
+        except json.JSONDecodeError:
+            return None
+    return None
+
+
+def _sections_from_json(data: dict) -> list[dict]:
+    sections: list[dict] = []
+    sources = data.get("sources")
+    if not isinstance(sources, list):
+        return sections
+
+    for entry in sources:
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("no_data") is True:
+            continue
+        host = entry.get("host") or entry.get("hostname") or ""
+        host = _normalize_host(str(host))
+        summary = str(entry.get("summary") or "").strip()
+        bullets = entry.get("bullets")
+        if bullets is None:
+            bullets = entry.get("items")
+        if not isinstance(bullets, list):
+            bullets = []
+        items = [str(b).strip() for b in bullets if str(b).strip()]
+        if not host and not summary and not items:
+            continue
+        label = host or "unknown"
+        sections.append({"site": label, "summary": summary, "items": items})
+
+    return sections
+
+
+def _legacy_prompt(page_text: str, user_prompt: str) -> tuple[str, str]:
     system_prompt = """You are a web data extraction assistant.
 Extract exactly what the user asks for from scraped webpage text.
 
 STRICT FORMAT RULES:
-- Always label each piece of data with its source site
+- Always label each piece of data with its source site using the hostname from the scrape headers (e.g. amazon.in, flipkart.com)
 - Output only source-labelled results. No introduction. No conclusion. No notes.
 - Use this format only:
-  [Site Name]: data found
+  hostname.example: data found
 - Keep each source concise: at most 3 bullet points or 1 short summary
-- If extracting prices, always show: [Site]: Product - Price
-- If the user asked to compare multiple products, keep the products separate and include entries for each requested product when present in that source
-- If no relevant data is present for a site, write exactly: [Site Name]: No data found
+- If extracting prices, always show: hostname: Product - Price
+- If the user asked to compare multiple products, keep the products separate
+- If no relevant data is present for a site, write exactly: hostname: No data found
 - Do not mention blocking, security, scraping problems, or reasons unless the user explicitly asked about that
 - Never invent missing specifications, prices, or explanations
 - Prefer exact facts present in the text over guesses
@@ -24,38 +100,116 @@ STRICT FORMAT RULES:
 
 USER REQUEST: {user_prompt}
 
-Extract the requested information. For every source site in the content above,
-show what was found or not found.
-
-Allowed output format:
-[Site Name]: extracted data here
+Extract the requested information. For every SOURCE block in the content above,
+show what was found or not found using the hostname from --- SOURCE: hostname --- lines.
 
 If it is prices, format as:
-[Site Name]:
-- Product name - Price
+hostname:
 - Product name - Price
 
-If the user is comparing products:
-- keep the requested products separate
-- do not collapse multiple products into one generic summary
-- prefer one bullet per requested product when available
-- do not output more than 3 bullets for a single source
-
-If it is specifications, list only concrete fields that are present in the scraped text.
 Never output more than 3 bullets for a single source."""
 
+    return system_prompt, full_prompt
+
+
+def extract_structured(
+    page_text: str,
+    user_prompt: str,
+    source_urls: list[str],
+    settings: Settings | None = None,
+) -> tuple[str, list[dict] | None, str]:
+    """
+    Returns (raw_text_for_display, sections_or_none, mode).
+    If sections_or_none is None, caller should parse raw_text with parse_extracted_sections.
+    """
+    settings = settings or get_settings()
+    allowed = _allowed_hosts_from_urls(source_urls)
+    host_lines = ", ".join(allowed) if allowed else "use hostnames from SOURCE headers"
+
+    system_json = """You are a web data extraction assistant. Output ONLY valid JSON, no markdown.
+Never invent facts. Use only hostnames from the allowed list when possible.
+If a source has nothing useful for the user request, set no_data to true and omit bullets."""
+
+    user_json = f"""Allowed hostnames (use these exact strings in "host"): {host_lines}
+
+SCRAPED CONTENT:
+{page_text}
+
+USER REQUEST:
+{user_prompt}
+
+Return JSON with this exact shape:
+{{
+  "sources": [
+    {{
+      "host": "hostname-without-www",
+      "summary": "one short sentence or empty string",
+      "bullets": ["fact 1", "fact 2"],
+      "no_data": false
+    }}
+  ]
+}}
+
+Rules:
+- At most 3 bullets per source.
+- host must be one of the allowed hostnames when possible.
+- no_data true means skip that source entirely in downstream UI."""
+
+    try:
+        response = requests.post(
+            settings.ollama_generate_url,
+            json={
+                "model": settings.ollama_model,
+                "prompt": user_json,
+                "system": system_json,
+                "stream": False,
+                "format": "json",
+            },
+            timeout=settings.ollama_timeout_s,
+        )
+        if response.status_code == 200:
+            raw = response.json().get("response", "").strip()
+            data = _parse_json_response(raw)
+            if data:
+                sections = _sections_from_json(data)
+                if sections:
+                    return json.dumps(data, indent=2, ensure_ascii=False), sections, "json"
+    except Exception as exc:
+        print(f"JSON extraction path failed, falling back: {exc}")
+
+    system_prompt, full_prompt = _legacy_prompt(page_text, user_prompt)
     response = requests.post(
-        "http://localhost:11434/api/generate",
+        settings.ollama_generate_url,
         json={
-            "model": "llama3",
+            "model": settings.ollama_model,
             "prompt": full_prompt,
             "system": system_prompt,
             "stream": False,
         },
-        timeout=120,
+        timeout=settings.ollama_timeout_s,
     )
 
-    if response.status_code == 200:
-        return response.json()["response"]
+    if response.status_code != 200:
+        raise RuntimeError(f"Ollama error: {response.status_code}")
 
-    raise Exception(f"Ollama error: {response.status_code}")
+    legacy = response.json().get("response", "").strip()
+    return legacy, None, "legacy"
+
+
+def extract_with_ai(page_text: str, user_prompt: str) -> str:
+    """Plain-text extraction only (no JSON); kept for simple call sites."""
+    settings = get_settings()
+    system_prompt, full_prompt = _legacy_prompt(page_text, user_prompt)
+    response = requests.post(
+        settings.ollama_generate_url,
+        json={
+            "model": settings.ollama_model,
+            "prompt": full_prompt,
+            "system": system_prompt,
+            "stream": False,
+        },
+        timeout=settings.ollama_timeout_s,
+    )
+    if response.status_code != 200:
+        raise RuntimeError(f"Ollama error: {response.status_code}")
+    return response.json().get("response", "").strip()

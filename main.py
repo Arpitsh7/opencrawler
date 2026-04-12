@@ -1,13 +1,29 @@
-from fastapi import FastAPI
-from fastapi.templating import Jinja2Templates
-from fastapi.requests import Request
-from pydantic import BaseModel
-import re
-from site_selector import select_sites
-from multi_scraper import scrape_all
-from ai_extractor import extract_with_ai
+from __future__ import annotations
 
-app = FastAPI()
+import asyncio
+import os
+import re
+import sys
+import urllib.parse
+from contextlib import asynccontextmanager
+
+# Playwright's async API spawns a subprocess for the browser driver. On Windows the
+# default asyncio loop (SelectorEventLoop) does not implement subprocess support and
+# raises NotImplementedError; ProactorEventLoop does.
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
+from fastapi import FastAPI, Request
+from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
+
+from ai_extractor import extract_structured
+from config import get_settings
+from content_window import select_relevant_excerpt
+from multi_scraper import scrape_all
+from parallel_scrape import scrape_all_async
+from site_selector import select_sites
+
 templates = Jinja2Templates(directory="templates")
 MOJIBAKE_REPLACEMENTS = {
     "â‚¹": "₹",
@@ -82,6 +98,30 @@ def is_no_data_text(value: str) -> bool:
     }
 
 
+def consolidate_sections(sections: list[dict]) -> list[dict]:
+    filtered_sections = []
+    for section in sections:
+        summary = clean_text(section.get("summary", "")).strip()
+        items = [clean_text(item).strip() for item in section.get("items", []) if clean_text(item).strip()]
+        if not items and "*" in summary:
+            summary, inferred_items = split_summary_into_items(summary)
+            items.extend(inferred_items)
+        items = [item for item in items if not is_no_data_text(item)]
+        if is_no_data_text(summary):
+            continue
+        if not summary and not items:
+            continue
+        filtered_sections.append(
+            {
+                "site": normalize_site_label(section.get("site", "")),
+                "summary": summary,
+                "items": items,
+            }
+        )
+
+    return filtered_sections
+
+
 def parse_extracted_sections(extracted_text: str) -> list[dict]:
     sections = []
     current = None
@@ -120,37 +160,92 @@ def parse_extracted_sections(extracted_text: str) -> list[dict]:
     if current:
         sections.append(current)
 
-    filtered_sections = []
-    for section in sections:
-        summary = clean_text(section.get("summary", "")).strip()
-        items = [clean_text(item).strip() for item in section.get("items", []) if clean_text(item).strip()]
-        if not items and "*" in summary:
-            summary, inferred_items = split_summary_into_items(summary)
-            items.extend(inferred_items)
-        items = [item for item in items if not is_no_data_text(item)]
-        if is_no_data_text(summary):
-            continue
-        if not summary and not items:
-            continue
-        filtered_sections.append(
-            {
-                "site": normalize_site_label(section.get("site", "")),
-                "summary": summary,
-                "items": items,
-            }
-        )
+    return consolidate_sections(sections)
 
-    return filtered_sections
+
+def build_source_by_host(urls: list[str]) -> dict[str, str]:
+    index: dict[str, str] = {}
+    for url in urls:
+        try:
+            host = urllib.parse.urlparse(url).netloc.lower()
+        except Exception:
+            continue
+        if not host:
+            continue
+        bare = host[4:] if host.startswith("www.") else host
+        index[host] = url
+        index[bare] = url
+    return index
+
+
+def _env_truthy(name: str) -> bool:
+    return os.getenv(name, "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def use_shared_async_browser() -> bool:
+    """
+    Shared async Playwright often breaks on Windows under uvicorn (reload / event loop).
+    Default: off on win32, on elsewhere. Override with USE_ASYNC_PLAYWRIGHT=1 or
+    FORCE_SUBPROCESS_SCRAPER=1.
+    """
+    if _env_truthy("FORCE_SUBPROCESS_SCRAPER"):
+        return False
+    if sys.platform == "win32" and not _env_truthy("USE_ASYNC_PLAYWRIGHT"):
+        return False
+    return True
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    app.state.browser = None
+    app.state.scraper_mode = "subprocess"
+
+    if not use_shared_async_browser():
+        if sys.platform == "win32" and not _env_truthy("USE_ASYNC_PLAYWRIGHT"):
+            print("Windows: using subprocess Playwright (scraper.py per URL). Set USE_ASYNC_PLAYWRIGHT=1 to try shared async browser.")
+        yield
+        return
+
+    from playwright.async_api import async_playwright
+
+    try:
+        async with async_playwright() as playwright:
+            browser = await playwright.chromium.launch(headless=True)
+            app.state.browser = browser
+            app.state.scraper_mode = "shared_async"
+            yield
+            await browser.close()
+    except Exception as exc:
+        print(f"Shared async browser failed ({type(exc).__name__}: {exc}); using subprocess Playwright.")
+        app.state.browser = None
+        app.state.scraper_mode = "subprocess"
+        yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 @app.get("/")
 async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
+
+@app.get("/health")
+async def health(request: Request):
+    browser = getattr(request.app.state, "browser", None)
+    mode = getattr(request.app.state, "scraper_mode", "subprocess")
+    return {
+        "status": "ok",
+        "browser_ready": browser is not None,
+        "scraper_mode": mode,
+    }
+
 @app.post("/agent")
-async def agent(data: AgentRequest):
+async def agent(request: Request, data: AgentRequest):
     try:
-        # Step 1: Choose search queries and candidate sites
-        sites = select_sites(data.request)
+        loop = asyncio.get_running_loop()
+        settings = get_settings()
+
+        sites = await loop.run_in_executor(None, select_sites, data.request)
         print(
             f"Category={sites['category']} Keyword={sites['keyword']} "
             f"Queries={sites.get('queries', [])}"
@@ -158,10 +253,12 @@ async def agent(data: AgentRequest):
         print(f"Primary sites: {sites['primary']}")
         print(f"Fallback sites: {sites['fallback']}")
 
-        # Step 2: Scrape with fallback logic
-        scraped = scrape_all(sites)
+        browser = getattr(request.app.state, "browser", None)
+        if browser is None:
+            scraped = await loop.run_in_executor(None, scrape_all, sites)
+        else:
+            scraped = await scrape_all_async(browser, sites, settings)
 
-        # Step 3: Combine successful results
         combined_text = ""
         successful_sites = []
         scrape_summary = []
@@ -177,10 +274,16 @@ async def agent(data: AgentRequest):
             )
             if r["status"] == "ok" and r["text"]:
                 try:
-                    hostname = r['url'].split('/')[2]
-                except:
-                    hostname = r['url']
-                combined_text += f"\n\n--- SOURCE: {hostname} ---\n{r['text'][:3000]}"
+                    hostname = urllib.parse.urlparse(r["url"]).netloc or r["url"]
+                except Exception:
+                    hostname = r["url"]
+                excerpt = select_relevant_excerpt(
+                    r["text"],
+                    sites["keyword"],
+                    sites["category"],
+                    settings.max_chars_per_source,
+                )
+                combined_text += f"\n\n--- SOURCE: {hostname} ---\n{excerpt}"
                 successful_sites.append(r["url"])
 
         if not combined_text:
@@ -197,14 +300,25 @@ async def agent(data: AgentRequest):
                 },
             }
 
-        # Step 4: AI extracts structured result
-        print(f"Sending {len(successful_sites)} pages to Ollama...")
-        result = clean_text(extract_with_ai(combined_text, data.request))
-        result_sections = parse_extracted_sections(result)
+        print(f"Sending {len(successful_sites)} pages to Ollama (extraction)...")
+
+        def run_extract():
+            return extract_structured(combined_text, data.request, successful_sites, settings)
+
+        raw_out, json_sections, extraction_mode = await loop.run_in_executor(None, run_extract)
+        result = clean_text(raw_out)
+        if json_sections is not None:
+            result_sections = consolidate_sections(json_sections)
+        else:
+            result_sections = parse_extracted_sections(result)
+
+        source_by_host = build_source_by_host(successful_sites)
 
         return {
             "status": "success",
             "sites_scraped": successful_sites,
+            "source_by_host": source_by_host,
+            "extraction_mode": extraction_mode,
             "visible_source_count": len(result_sections),
             "category": sites["category"],
             "keyword": sites["keyword"],
@@ -220,5 +334,6 @@ async def agent(data: AgentRequest):
 
     except Exception as e:
         import traceback
+
         traceback.print_exc()
         return {"status": "error", "message": str(e)}
