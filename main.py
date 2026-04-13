@@ -189,21 +189,209 @@ def parse_source_excerpts(combined_text: str) -> dict[str, str]:
     return out
 
 
-def heuristic_price_lines(text: str, limit: int = 3) -> list[str]:
+def _keyword_terms(keyword: str, compare_targets: list[str]) -> list[str]:
+    words: list[str] = []
+    for value in [keyword, *compare_targets]:
+        words.extend(re.findall(r"[a-z0-9]+", (value or "").lower()))
+    # Keep meaningful tokens, dedupe while preserving order.
+    seen = set()
+    terms = []
+    for w in words:
+        if len(w) < 3:
+            continue
+        if w in seen:
+            continue
+        seen.add(w)
+        terms.append(w)
+    return terms
+
+
+def _line_has_price_signal(line: str) -> bool:
+    low = line.lower()
+    return "₹" in line or "rs." in low or "inr" in low or ("price" in low and any(ch.isdigit() for ch in line))
+
+
+def _line_has_model_signal(line: str, terms: list[str]) -> bool:
+    low = line.lower()
+    overlap = sum(1 for t in terms if t in low)
+    if overlap >= 1:
+        return True
+    # Generic model/SKU-like token: letter+digits (works across domains, not brand-specific).
+    if re.search(r"\b[a-z]{1,8}\d{1,5}[a-z0-9\-]*\b", low):
+        return True
+    # Generic named item pattern: at least 2 words and a number/spec hint.
+    words = re.findall(r"[a-z0-9]+", low)
+    has_spec_hint = any(sig in low for sig in ["ram", "storage", "battery", "processor", "chipset", "display", "camera"])
+    return len(words) >= 2 and (has_spec_hint or any(ch.isdigit() for ch in low))
+
+
+def heuristic_price_lines(
+    text: str,
+    keyword: str = "",
+    compare_targets: list[str] | None = None,
+    limit: int = 3,
+) -> list[str]:
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    terms = _keyword_terms(keyword, compare_targets or [])
     items: list[str] = []
-    for raw in text.splitlines():
-        line = raw.strip()
-        if not line or len(line) > 240:
+
+    for idx, line in enumerate(lines):
+        if len(line) > 360:
             continue
-        low = line.lower()
-        if "₹" in line or "rs." in low or "inr" in low:
-            items.append(line)
+        if _JUNK_PRICE_BULLET.search(line):
             continue
-        if "price" in low and any(ch.isdigit() for ch in line):
+
+        has_price = _line_has_price_signal(line)
+        has_model = _line_has_model_signal(line, terms)
+
+        if has_price and has_model:
             items.append(line)
+        elif has_price:
+            # Try to attach nearby model context so we avoid bare amount rows.
+            prev_line = lines[idx - 1].strip() if idx > 0 else ""
+            if prev_line and len(prev_line) <= 220 and _line_has_model_signal(prev_line, terms):
+                items.append(f"{prev_line} — {line}")
+            else:
+                items.append(line)
+        elif has_model and any(sig in line.lower() for sig in ["ram", "storage", "battery", "processor", "chipset"]):
+            # Sometimes price is omitted in one line, but spec line is still useful.
+            items.append(line)
+
         if len(items) >= limit:
             break
-    return items
+
+    # Dedupe while preserving order.
+    deduped: list[str] = []
+    seen = set()
+    for item in items:
+        k = item.lower()
+        if k in seen:
+            continue
+        seen.add(k)
+        deduped.append(item)
+    return deduped[:limit]
+
+
+_JUNK_PRICE_BULLET = re.compile(
+    r"protect\s*promise|convenience\s*fee|^\+\s*₹|no\s+cost\s+emi\b|emi\s+starting",
+    re.IGNORECASE,
+)
+
+
+def _is_price_only_fragment(line: str) -> bool:
+    """True if line looks like a bare amount / accessory with almost no product words."""
+    s = (line or "").strip()
+    if len(s) < 4:
+        return True
+    if _JUNK_PRICE_BULLET.search(s):
+        return True
+    letters = sum(1 for c in s if c.isalpha())
+    if letters >= 14:
+        return False
+    low = s.lower()
+    # Non-hardcoded model detector: token with letters+digits usually indicates SKU/model.
+    if re.search(r"\b[a-z]{1,10}\d{1,6}[a-z0-9\-]*\b", low):
+        return False
+    if any(term in low for term in ["gb", "tb", "mah", "mp", "hz", "inch", "cm", "mm"]):
+        return False
+    if "₹" in s or "rs." in low:
+        return letters < 8
+    return False
+
+
+def polish_price_results(
+    sections: list[dict],
+    category: str,
+    compare_targets: list[str],
+) -> list[dict]:
+    """Remove fee/noise bullets; for compare queries, drop bare price-only lines when richer lines exist."""
+    if category != "prices":
+        return sections
+    targets = list(compare_targets or [])
+    out: list[dict] = []
+    for sec in sections:
+        raw_items = [clean_text(x).strip() for x in (sec.get("items") or []) if clean_text(x).strip()]
+        after_junk = [it for it in raw_items if not _JUNK_PRICE_BULLET.search(it)]
+        items = after_junk
+        if len(targets) >= 2:
+            richer = [it for it in after_junk if not _is_price_only_fragment(it)]
+            if richer:
+                items = richer
+        summary = clean_text(sec.get("summary", "")).strip()
+        if not items and not summary:
+            continue
+        out.append({**sec, "items": items, "summary": summary})
+    return out
+
+
+def polish_results_by_category(
+    sections: list[dict],
+    category: str,
+    keyword: str = "",
+    compare_targets: list[str] | None = None,
+) -> list[dict]:
+    """Category-aware cleanup without product hardcoding."""
+    compare_targets = compare_targets or []
+    keyword_terms = _keyword_terms(keyword, compare_targets)
+    out: list[dict] = []
+
+    for sec in sections:
+        summary = clean_text(sec.get("summary", "")).strip()
+        raw_items = [clean_text(x).strip() for x in (sec.get("items") or []) if clean_text(x).strip()]
+
+        if category == "prices":
+            raw_items = [it for it in raw_items if not _JUNK_PRICE_BULLET.search(it)]
+            richer = [it for it in raw_items if not _is_price_only_fragment(it)]
+            if len(compare_targets) >= 2 and richer:
+                raw_items = richer
+            # Prefer lines tied to query terms when we have enough choices
+            if len(raw_items) > 3 and keyword_terms:
+                scored = sorted(
+                    raw_items,
+                    key=lambda it: sum(1 for t in keyword_terms if t in it.lower()),
+                    reverse=True,
+                )
+                raw_items = scored[:3]
+
+        elif category == "tech_specs":
+            keep_tokens = ["display", "battery", "camera", "ram", "storage", "processor", "chipset", "os"]
+            filtered = [it for it in raw_items if any(tok in it.lower() for tok in keep_tokens)]
+            if filtered:
+                raw_items = filtered[:3]
+            else:
+                raw_items = raw_items[:3]
+
+        elif category == "news":
+            # Keep short factual lines; drop boilerplate.
+            boilerplate = ("subscribe", "cookie", "sign in", "advertisement")
+            filtered = [it for it in raw_items if not any(b in it.lower() for b in boilerplate)]
+            raw_items = filtered[:3]
+
+        elif category == "jobs":
+            # Prefer lines with role/company/location-like tokens.
+            job_markers = ["engineer", "developer", "analyst", "manager", "remote", "full-time", "intern"]
+            filtered = [it for it in raw_items if any(m in it.lower() for m in job_markers)]
+            raw_items = (filtered or raw_items)[:3]
+
+        elif category == "quotes":
+            # Quotes should be short and clean.
+            raw_items = [it.strip(' -"\'') for it in raw_items if 8 <= len(it) <= 220][:3]
+
+        # Generic dedupe
+        deduped: list[str] = []
+        seen = set()
+        for it in raw_items:
+            k = it.lower()
+            if k in seen:
+                continue
+            seen.add(k)
+            deduped.append(it)
+
+        if not deduped and not summary:
+            continue
+        out.append({**sec, "summary": summary, "items": deduped[:3]})
+
+    return out
 
 
 def augment_sections_for_missing_scrapes(
@@ -211,6 +399,8 @@ def augment_sections_for_missing_scrapes(
     successful_urls: list[str],
     combined_text: str,
     category: str,
+    keyword: str = "",
+    compare_targets: list[str] | None = None,
 ) -> list[dict]:
     """
     The LLM often returns fewer sources than pages we actually scraped.
@@ -231,7 +421,7 @@ def augment_sections_for_missing_scrapes(
         body = excerpts.get(key, "")
         items: list[str] = []
         if category == "prices" and body:
-            items = heuristic_price_lines(body)
+            items = heuristic_price_lines(body, keyword, compare_targets)
         summary = ""
         if not items:
             summary = (
@@ -369,7 +559,17 @@ async def agent(request: Request, data: AgentRequest):
         print(f"Sending {len(successful_sites)} pages to Ollama (extraction)...")
 
         def run_extract():
-            return extract_structured(combined_text, data.request, successful_sites, settings)
+            return extract_structured(
+                combined_text,
+                data.request,
+                successful_sites,
+                settings,
+                {
+                    "category": sites.get("category", ""),
+                    "keyword": sites.get("keyword", ""),
+                    "compare_targets": sites.get("compare_targets") or [],
+                },
+            )
 
         raw_out, json_sections, extraction_mode = await loop.run_in_executor(None, run_extract)
         result = clean_text(raw_out)
@@ -383,8 +583,21 @@ async def agent(request: Request, data: AgentRequest):
             successful_sites,
             combined_text,
             sites["category"],
+            sites.get("keyword", ""),
+            sites.get("compare_targets") or [],
         )
         result_sections = consolidate_sections(result_sections)
+        result_sections = polish_price_results(
+            result_sections,
+            sites.get("category", ""),
+            sites.get("compare_targets") or [],
+        )
+        result_sections = polish_results_by_category(
+            result_sections,
+            sites.get("category", ""),
+            sites.get("keyword", ""),
+            sites.get("compare_targets") or [],
+        )
 
         source_by_host = build_source_by_host(successful_sites)
 
