@@ -13,6 +13,105 @@ Local web research agent built with FastAPI, Playwright, and Ollama.
 7. Uses Ollama again to extract answers, preferring **JSON** output when the server supports it, with **plain-text fallback** for older Ollama builds
 8. Returns a **`source_by_host` map** so the UI can link each card to the exact URL that was scraped
 
+## Complete tech stack used
+
+### Core runtime
+
+- **Python 3.10+**: main application language
+- **FastAPI**: API server and app lifecycle management
+- **Uvicorn**: ASGI server for local development
+- **Jinja2**: template rendering for the frontend page
+
+### AI / LLM layer
+
+- **Ollama** (local): runs the model used by the agent pipeline
+- **Llama 3** (default model): request classification, keyword extraction, and answer extraction
+- **Structured JSON extraction + fallback text extraction**: ensures compatibility across different Ollama/server capabilities
+
+### Web discovery and scraping
+
+- **DuckDuckGo HTML search parsing**: initial URL discovery for query-specific candidates
+- **Playwright (Chromium)**: browser automation for scraping pages
+- **Async shared-browser scraping** (`scraper_async.py`, `parallel_scrape.py`): higher-throughput mode with one browser and parallel contexts
+- **Subprocess scraper fallback** (`scraper.py`, `multi_scraper.py`): robust per-URL scraping path, especially useful on Windows
+- **BeautifulSoup4**: parsing search result pages and extracting candidate links
+- **Requests**: HTTP calls for search discovery and auxiliary fetch operations
+
+### Ranking, filtering, and quality layers
+
+- **Site ranking + source selection** (`site_selector.py`): primary vs fallback queues
+- **Content windowing** (`content_window.py`): keyword-aware excerpt selection from long page text
+- **Trace error normalization** (`trace_format.py`): short, UI-friendly scrape diagnostics
+- **Post-extraction cleanup** (`main.py`): category-aware polishing and fallback section completion
+
+### Frontend / UX
+
+- **Server-rendered HTML/CSS/JS** (`templates/index.html`)
+- **Interactive research dashboard**: pipeline steps, source cards, and trace blocks
+- **Debug/trace visibility**: queries used, source queues, scrape outcomes, and status state
+
+### Configuration and operations
+
+- **Environment-variable based settings** (`config.py`)
+- **Health endpoint** (`/health`): runtime mode and browser readiness checks
+- **Local test script** (`test_scraper.py`) for scraper sanity checks
+
+## Step-by-step: how ScrapeX works
+
+### 1) User request intake
+
+The user submits a natural language query through the UI (for example, product prices, specs, news, jobs, or quotes).  
+`main.py` receives this in the `/agent` endpoint.
+
+### 2) Query understanding and intent classification
+
+The app calls Ollama to:
+- detect category (such as `prices`, `tech_specs`, `news`, `jobs`, `quotes`)
+- extract a strong keyword phrase
+- generate search-ready query variants
+
+### 3) Live source discovery
+
+`search_engine.py` fetches search result candidates (DuckDuckGo), then `site_selector.py` ranks and organizes URLs into:
+- **Primary queue** (best expected signal)
+- **Fallback queue** (backup sources if primaries fail/underperform)
+
+### 4) Scraping execution
+
+Depending on platform/runtime settings:
+- **Async shared-browser mode** (`scraper_async.py` + `parallel_scrape.py`), or
+- **Subprocess mode** (`multi_scraper.py` invoking `scraper.py`)
+
+The scraper validates page quality, follows listing/detail links where needed, handles dynamic pages, and filters weak/blocked/no-result pages.
+
+### 5) Relevance-focused text preparation
+
+`content_window.py` trims each scraped page into a high-signal excerpt based on the detected query/category while keeping scrape validation separate from LLM context trimming.
+
+### 6) AI extraction and structuring
+
+`ai_extractor.py` sends prepared page content to Ollama:
+- tries strict **JSON** output first
+- falls back to plain text extraction if needed
+
+The response is normalized into source-wise result sections.
+
+### 7) Output polishing and gap filling
+
+`main.py` performs post-processing:
+- category-aware cleanup of weak/junk lines
+- augmentation when a successfully scraped host is missing from model output
+- generation of `source_by_host` mapping for reliable source links in UI
+
+### 8) Final UI response + trace
+
+The frontend renders:
+- result cards per source
+- summary tiles (category/keyword/source count)
+- trace panels (queries, primary/fallback queues, scrape outcomes)
+
+This makes the output both useful for end users and debuggable for development.
+
 ## Configuration
 
 Environment variables (all optional):
