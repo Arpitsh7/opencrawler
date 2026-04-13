@@ -25,7 +25,7 @@ Local web research agent built with FastAPI, Playwright, and Ollama.
 ### AI / LLM layer
 
 - **Ollama** (local): runs the model used by the agent pipeline
-- **Llama 3** (default model): request classification, keyword extraction, and answer extraction
+- **qwen2.5:7b-instruct** (default model): request classification, keyword extraction, and answer extraction
 - **Structured JSON extraction + fallback text extraction**: ensures compatibility across different Ollama/server capabilities
 
 ### Web discovery and scraping
@@ -119,7 +119,7 @@ Environment variables (all optional):
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama API base |
-| `OLLAMA_MODEL` | `llama3` | Model for classification, keywords, and extraction |
+| `OLLAMA_MODEL` | `qwen2.5:7b-instruct` | Model for classification, keywords, and extraction |
 | `OLLAMA_TIMEOUT_S` | `180` | Timeout for extraction calls |
 | `OLLAMA_KEYWORD_TIMEOUT_S` | `45` | Timeout for short classification/keyword calls |
 | `SCRAPE_CONCURRENCY` | `4` | Parallel Playwright contexts per request |
@@ -146,7 +146,7 @@ Make sure Ollama is running locally:
 
 ```powershell
 ollama serve
-ollama pull llama3
+ollama pull qwen2.5:7b-instruct
 ```
 
 Override the base URL and model with `OLLAMA_BASE_URL` and `OLLAMA_MODEL` if needed.
