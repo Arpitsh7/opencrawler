@@ -485,6 +485,11 @@ async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 
+@app.get("/app")
+async def app_page(request: Request):
+    return templates.TemplateResponse("app.html", {"request": request})
+
+
 @app.get("/health")
 async def health(request: Request):
     browser = getattr(request.app.state, "browser", None)
