@@ -1,1318 +1,2500 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Signal Desk</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --paper: #000000;
-            --paper-strong: #090909;
-            --ink: #ffffff;
-            --ink-soft: #d9d9d9;
-            --muted: #a6a6a6;
-            --panel: rgba(9, 9, 9, 0.92);
-            --panel-strong: #090909;
-            --accent: #f472b6;
-            --accent-soft: rgba(244, 114, 182, 0.16);
-            --secondary: #ffffff;
-            --success: #039855;
-            --warning: #b54708;
-            --danger: #b42318;
-            --shadow: 0 24px 70px rgba(0, 0, 0, 0.4);
-            --radius-xl: 32px;
-            --radius-lg: 24px;
-            --radius-md: 18px;
-        }
-
-        * { box-sizing: border-box; }
-        html { scroll-behavior: smooth; }
-
-        body {
-            margin: 0;
-            font-family: 'Manrope', sans-serif;
-            color: var(--ink);
-            background:
-                radial-gradient(circle at 10% 12%, rgba(244, 114, 182, 0.10), transparent 26%),
-                radial-gradient(circle at 84% 16%, rgba(244, 114, 182, 0.07), transparent 22%),
-                radial-gradient(circle at 60% 72%, rgba(244, 114, 182, 0.08), transparent 28%),
-                #000;
-            min-height: 100vh;
-        }
-
-        body::before {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background-image:
-                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-            background-size: 52px 52px;
-            mask-image: linear-gradient(180deg, rgba(0,0,0,0.5), transparent 92%);
-            pointer-events: none;
-            z-index: 0;
-        }
-
-        .page {
-            position: relative;
-            z-index: 1;
-            width: min(1240px, calc(100% - 32px));
-            margin: 0 auto;
-            padding: 28px 0 64px;
-        }
-
-        .nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 0 20px;
-            gap: 18px;
-        }
-
-        .brand {
-            display: inline-flex;
-            align-items: center;
-            gap: 12px;
-            text-decoration: none;
-            color: inherit;
-        }
-
-        .brand-mark {
-            width: 48px;
-            height: 48px;
-            border-radius: 16px;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(244, 114, 182, 0.22);
-            color: #ffd2ea;
-            display: grid;
-            place-items: center;
-            box-shadow: 0 12px 26px rgba(0, 0, 0, 0.35);
-        }
-
-        .brand-copy strong {
-            display: block;
-            font-size: 15px;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-        }
-
-        .brand-copy span {
-            display: block;
-            color: var(--muted);
-            font-size: 13px;
-        }
-
-        .nav-pill {
-            border: 1px solid rgba(255, 255, 255, 0.16);
-            border-radius: 999px;
-            background: rgba(255,255,255,0.08);
-            padding: 10px 14px;
-            font-size: 12px;
-            color: var(--ink-soft);
-            backdrop-filter: blur(18px);
-            text-align: center;
-        }
-
-        .hero {
-            display: grid;
-            grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
-            gap: 24px;
-            align-items: stretch;
-        }
-
-        .hero-card,
-        .panel,
-        .results-shell,
-        .trace-shell,
-        .empty-shell {
-            background: var(--panel);
-            border: 1px solid rgba(255, 77, 184, 0.2);
-            box-shadow: var(--shadow);
-            backdrop-filter: blur(18px);
-        }
-
-        .hero-card {
-            border-radius: var(--radius-xl);
-            padding: 40px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .hero-card::after {
-            content: '';
-            position: absolute;
-            right: -80px;
-            bottom: -90px;
-            width: 260px;
-            height: 260px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(244, 114, 182, 0.12), transparent 70%);
-        }
-
-        .eyebrow {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 12px;
-            border-radius: 999px;
-            background: rgba(255,255,255,0.55);
-            border: 1px solid rgba(17, 19, 21, 0.08);
-            color: var(--ink-soft);
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.12em;
-        }
-
-        h1 {
-            margin: 20px 0 14px;
-            font-family: 'Sora', sans-serif;
-            font-size: clamp(2.85rem, 4.4vw, 4.6rem);
-            line-height: 0.98;
-            font-weight: 700;
-            letter-spacing: -0.06em;
-            max-width: 11ch;
-        }
-
-        .hero-copy {
-            max-width: 60ch;
-            color: var(--ink-soft);
-            font-size: 18px;
-            line-height: 1.8;
-            margin-bottom: 30px;
-        }
-
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 14px;
-        }
-
-        .stat {
-            border-radius: 20px;
-            background: rgba(255,255,255,0.10);
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            padding: 18px;
-        }
-
-        .stat strong {
-            display: block;
-            font-size: 24px;
-            margin-bottom: 6px;
-        }
-
-        .stat span {
-            color: var(--muted);
-            font-size: 13px;
-            line-height: 1.55;
-        }
-
-        .panel {
-            border-radius: var(--radius-xl);
-            padding: 22px;
-            display: flex;
-            flex-direction: column;
-            gap: 18px;
-        }
-
-        .panel-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .panel-title {
-            font-size: 13px;
-            text-transform: uppercase;
-            letter-spacing: 0.12em;
-            color: var(--muted);
-        }
-
-        .panel-badge {
-            padding: 8px 12px;
-            border-radius: 999px;
-            background: var(--accent-soft);
-            color: #ffd2ea;
-            font-size: 12px;
-            font-weight: 700;
-        }
-
-        .query-shell {
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-        }
-
-        .query-box {
-            min-height: 168px;
-            resize: vertical;
-            width: 100%;
-            border: 1px solid rgba(255, 255, 255, 0.16);
-            border-radius: 24px;
-            padding: 22px 20px;
-            font: inherit;
-            font-size: 16px;
-            line-height: 1.7;
-            color: var(--ink);
-            background: rgba(255,255,255,0.06);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
-            outline: none;
-            transition: border-color 0.2s, box-shadow 0.2s;
-        }
-
-        .query-box:focus {
-            border-color: rgba(255, 77, 184, 0.65);
-            box-shadow: 0 0 0 5px rgba(255, 77, 184, 0.18);
-        }
-
-        .actions {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-
-        .primary-btn,
-        .secondary-btn {
-            border: 0;
-            border-radius: 18px;
-            padding: 16px 20px;
-            font: inherit;
-            font-size: 14px;
-            font-weight: 800;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
-        }
-
-        .primary-btn {
-            background: linear-gradient(135deg, #f472b6, #f9a8d4);
-            color: white;
-            box-shadow: 0 22px 34px rgba(244, 114, 182, 0.24);
-            flex: 1;
-        }
-
-        .secondary-btn {
-            background: rgba(255,255,255,0.08);
-            color: var(--ink-soft);
-            border: 1px solid rgba(255, 255, 255, 0.16);
-        }
-
-        .primary-btn:hover,
-        .secondary-btn:hover {
-            transform: translateY(-1px);
-        }
-
-        .primary-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .suggestions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .suggestion-chip {
-            padding: 11px 14px;
-            border-radius: 999px;
-            border: 1px solid rgba(255, 255, 255, 0.16);
-            background: rgba(255,255,255,0.06);
-            color: var(--ink-soft);
-            font-size: 13px;
-            cursor: pointer;
-            transition: transform 0.2s, border-color 0.2s, background 0.2s;
-        }
-
-        .suggestion-chip:hover {
-            transform: translateY(-1px);
-            border-color: rgba(244, 114, 182, 0.42);
-            background: rgba(255,255,255,0.12);
-        }
-
-        .pipeline {
-            display: none;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 14px;
-            margin-top: 24px;
-        }
-        .step {
-            padding: 16px;
-            border-radius: 20px;
-            background: rgba(255,255,255,0.55);
-            border: 1px solid rgba(17, 19, 21, 0.08);
-            min-height: 108px;
-        }
-
-        .step-index {
-            width: 34px;
-            height: 34px;
-            border-radius: 12px;
-            display: grid;
-            place-items: center;
-            background: rgba(17, 19, 21, 0.06);
-            color: var(--ink-soft);
-            font-size: 12px;
-            font-weight: 800;
-            margin-bottom: 18px;
-        }
-
-        .step.active {
-            background: rgba(37, 99, 235, 0.08);
-            border-color: rgba(37, 99, 235, 0.16);
-        }
-
-        .step.done {
-            background: rgba(25, 135, 84, 0.1);
-            border-color: rgba(25, 135, 84, 0.16);
-        }
-
-        .step.active .step-index {
-            background: var(--accent);
-            color: white;
-            box-shadow: 0 12px 22px rgba(37, 99, 235, 0.24);
-        }
-
-        .step.done .step-index {
-            background: var(--success);
-            color: white;
-        }
-
-        .step h3 {
-            margin: 0 0 8px;
-            font-size: 16px;
-        }
-
-        .step p {
-            margin: 0;
-            font-size: 13px;
-            color: var(--muted);
-            line-height: 1.6;
-        }
-
-        .results-grid {
-            display: grid;
-            grid-template-columns: minmax(0, 1.2fr) minmax(280px, min(36vw, 420px));
-            gap: 24px;
-            margin-top: 26px;
-            align-items: start;
-            min-width: 0;
-        }
-
-        .results-shell,
-        .trace-shell,
-        .empty-shell {
-            border-radius: var(--radius-xl);
-            padding: 28px;
-            min-width: 0;
-        }
-
-        .results-shell,
-        .trace-shell {
-            overflow-x: hidden;
-        }
-
-        .shell-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 16px;
-            margin-bottom: 22px;
-        }
-
-        .shell-header h2 {
-            margin: 0;
-            font-size: 30px;
-            line-height: 1.1;
-            letter-spacing: -0.04em;
-        }
-
-        .shell-header p {
-            margin: 8px 0 0;
-            color: var(--muted);
-            font-size: 14px;
-            line-height: 1.6;
-        }
-
-        .header-actions {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            justify-content: flex-end;
-        }
-
-        .ghost-pill {
-            border-radius: 999px;
-            padding: 10px 12px;
-            background: rgba(255,255,255,0.6);
-            border: 1px solid rgba(17, 19, 21, 0.08);
-            color: var(--ink-soft);
-            font-size: 12px;
-            font-weight: 700;
-        }
-
-        .summary-banner {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 12px;
-            margin-bottom: 18px;
-        }
-
-        .summary-tile {
-            padding: 16px 18px;
-            border-radius: 20px;
-            background: rgba(255,255,255,0.06);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-        }
-
-        .summary-tile label {
-            display: block;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--muted);
-            margin-bottom: 8px;
-        }
-
-        .summary-tile strong {
-            display: block;
-            font-size: 18px;
-            line-height: 1.35;
-        }
-
-        .source-grid {
-            display: grid;
-            gap: 14px;
-        }
-
-        .source-card {
-            border-radius: 26px;
-            padding: 24px;
-            background: var(--panel-strong);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            box-shadow: 0 18px 34px rgba(0, 0, 0, 0.4);
-        }
-
-        .source-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 16px;
-        }
-
-        .source-site {
-            font-size: 18px;
-            font-weight: 800;
-            letter-spacing: -0.03em;
-            font-family: 'Sora', sans-serif;
-        }
-
-        .source-link {
-            color: var(--secondary);
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .source-link:hover {
-            color: var(--accent);
-        }
-
-        .source-link svg {
-            width: 16px;
-            height: 16px;
-            opacity: 0.6;
-        }
-
-        .source-badge {
-            border-radius: 999px;
-            padding: 8px 12px;
-            background: var(--accent-soft);
-            color: #ffd2ea;
-            font-size: 12px;
-            font-weight: 800;
-        }
-
-        .source-summary {
-            color: var(--ink-soft);
-            line-height: 1.8;
-            font-size: 15px;
-            margin: 0 0 14px;
-        }
-
-        .source-list {
-            display: grid;
-            gap: 10px;
-            margin: 0;
-            padding: 0;
-            list-style: none;
-        }
-
-        .source-list li {
-            padding: 14px 16px;
-            border-radius: 18px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            line-height: 1.7;
-            font-size: 14px;
-            color: var(--ink-soft);
-        }
-        .trace-stack {
-            display: grid;
-            gap: 14px;
-        }
-
-        .trace-card {
-            border-radius: 22px;
-            padding: 18px;
-            background: rgba(255,255,255,0.62);
-            border: 1px solid rgba(17, 19, 21, 0.08);
-        }
-
-        .trace-card h3 {
-            margin: 0 0 12px;
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--muted);
-        }
-
-        .tag-row,
-        .trace-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            min-width: 0;
-            max-width: 100%;
-        }
-
-        .trace-list--scrape {
-            flex-direction: column;
-            flex-wrap: nowrap;
-            align-items: stretch;
-        }
-
-        .trace-scrape-row {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr);
-            gap: 6px;
-            padding: 10px 12px;
-            border-radius: 14px;
-            background: rgba(255, 255, 255, 0.55);
-            border: 1px solid rgba(17, 19, 21, 0.07);
-            max-width: 100%;
-            overflow: hidden;
-        }
-
-        .trace-scrape-host {
-            font-size: 12px;
-            font-weight: 800;
-            color: var(--ink);
-            word-break: break-word;
-            overflow-wrap: anywhere;
-        }
-
-        .trace-scrape-meta {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 8px;
-            min-width: 0;
-        }
-
-        .trace-scrape-detail {
-            flex: 1 1 100%;
-            min-width: 0;
-            margin: 0;
-            font-size: 11px;
-            font-weight: 600;
-            color: var(--muted);
-            line-height: 1.45;
-            word-break: break-word;
-            overflow-wrap: anywhere;
-            white-space: normal;
-        }
-
-        .tag,
-        .trace-pill {
-            border-radius: 999px;
-            padding: 9px 12px;
-            font-size: 12px;
-            font-weight: 700;
-            background: rgba(17, 19, 21, 0.05);
-            color: var(--ink-soft);
-            border: 1px solid rgba(17, 19, 21, 0.06);
-            max-width: 100%;
-            overflow-wrap: anywhere;
-            word-break: break-word;
-        }
-
-        .trace-pill.ok { background: rgba(25, 135, 84, 0.1); color: var(--success); }
-        .trace-pill.blocked { background: rgba(184, 106, 0, 0.12); color: var(--warning); }
-        .trace-pill.error,
-        .trace-pill.empty { background: rgba(180, 35, 24, 0.1); color: var(--danger); }
-
-        .raw-box {
-            white-space: pre-wrap;
-            background: #15171a;
-            color: #f5f7fa;
-            padding: 18px;
-            border-radius: 18px;
-            font-size: 13px;
-            line-height: 1.7;
-            max-height: 320px;
-            overflow: auto;
-        }
-
-        .empty-shell {
-            margin-top: 26px;
-            text-align: center;
-            padding: 42px 28px;
-        }
-
-        .empty-shell strong {
-            display: block;
-            font-size: 22px;
-            margin-bottom: 10px;
-        }
-
-        .empty-shell p {
-            margin: 0;
-            color: var(--muted);
-            line-height: 1.75;
-        }
-
-        .hidden { display: none !important; }
-
-        .landing-screen {
-            width: 100vw;
-            margin-left: calc(50% - 50vw);
-            min-height: 100vh;
-            background: #000;
-            display: grid;
-            place-items: center;
-            padding: 24px;
-        }
-
-        .landing-card {
-            width: min(980px, 100%);
-            border-radius: 20px;
-            padding: 72px 36px;
-            border: 1px solid rgba(255, 77, 184, 0.2);
-            background: linear-gradient(180deg, #000, #070707);
-            text-align: center;
-            box-shadow: rgba(255, 77, 184, 0.15) 0px 0px 0px 1px;
-        }
-
-        .landing-kicker {
-            display: inline-flex;
-            border-radius: 999px;
-            padding: 8px 12px;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: var(--muted);
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.16);
-        }
-
-        .landing-title {
-            margin: 18px auto 14px;
-            font-family: 'Sora', sans-serif;
-            font-size: clamp(2.8rem, 8vw, 6rem);
-            line-height: 0.9;
-            letter-spacing: -0.05em;
-            max-width: 9ch;
-        }
-
-        .landing-copy {
-            margin: 0 auto 22px;
-            max-width: 62ch;
-            color: var(--muted);
-            font-size: 17px;
-            line-height: 1.55;
-        }
-
-        .landing-note {
-            margin-top: 12px;
-            color: rgba(255, 255, 255, 0.6);
-            font-size: 12px;
-        }
-
-        @media (max-width: 1040px) {
-            .hero,
-            .results-grid {
-                grid-template-columns: 1fr;
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>ScrapeX — Research Platform</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100;0,9..144,800;1,9..144,300;1,9..144,700&family=JetBrains+Mono:wght@300;400&family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            *,
+            *::before,
+            *::after {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
             }
-        }
+            html {
+                scroll-behavior: smooth;
+            }
+            body {
+                font-family: "Manrope", sans-serif;
+                color: #fff;
+                background: #000;
+                overflow-x: hidden;
+            }
 
-        @media (max-width: 760px) {
-            .page { width: min(100% - 20px, 100%); }
+            /* ════════════════════════════
+    SECTION 1 — SCENIC HERO
+ ════════════════════════════ */
+            #scenicSection {
+                position: relative;
+                width: 100%;
+                height: 100vh;
+                overflow: hidden;
+                background: #080316;
+            }
+            #scenicSection::before {
+                content: "";
+                position: absolute;
+                inset: 0;
+                background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+                opacity: 0.45;
+                pointer-events: none;
+                z-index: 10;
+                mix-blend-mode: overlay;
+            }
+            .s-nav {
+                position: absolute;
+                top: 18px;
+                left: 72px;
+                right: 72px;
+                z-index: 30;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 16px 36px;
+                animation: fadeDown 0.7s ease both;
+            }
+            .s-nav-logo {
+                font-family: "Fraunces", serif;
+                font-size: 1.4rem;
+                font-weight: 800;
+                color: #fef9ef;
+                letter-spacing: -0.02em;
+                display: flex;
+                align-items: baseline;
+                gap: 7px;
+                cursor: pointer;
+            }
+            .s-nav-logo span {
+                font-style: italic;
+                font-weight: 300;
+                color: #f5c842;
+                font-size: 0.95rem;
+                letter-spacing: 0.01em;
+            }
+            .s-nav-links {
+                display: flex;
+                gap: 40px;
+                list-style: none;
+            }
+            .s-nav-links a {
+                font-size: 0.68rem;
+                font-weight: 300;
+                letter-spacing: 0.12em;
+                text-transform: uppercase;
+                color: rgba(255, 255, 255, 0.48);
+                text-decoration: none;
+                transition: color 0.2s;
+            }
+            .s-nav-links a:hover {
+                color: rgba(255, 255, 255, 0.9);
+            }
+            .s-nav-cta {
+                font-size: 0.68rem;
+                letter-spacing: 0.08em;
+                background: rgba(255, 255, 255, 0.08);
+                border: 1px solid rgba(255, 255, 255, 0.14);
+                color: rgba(255, 255, 255, 0.78);
+                padding: 8px 18px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-family: "JetBrains Mono", monospace;
+                transition: background 0.2s;
+            }
+            .s-nav-cta:hover {
+                background: rgba(255, 255, 255, 0.14);
+            }
+            .sky {
+                position: absolute;
+                inset: 0;
+                background: linear-gradient(
+                    180deg,
+                    #08031a 0%,
+                    #1a0533 10%,
+                    #3b1070 22%,
+                    #8b3080 34%,
+                    #c4586a 45%,
+                    #e8845c 55%,
+                    #f5b97a 65%,
+                    #fce6a8 76%,
+                    #fff8e8 86%,
+                    #ffffff 100%
+                );
+            }
+            .sun {
+                position: absolute;
+                top: 38%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 100px;
+                height: 100px;
+                border-radius: 50%;
+                filter: blur(1.5px);
+                background: radial-gradient(
+                    circle,
+                    #fffde7 0%,
+                    #fdd835 28%,
+                    #f5a623 52%,
+                    transparent 72%
+                );
+            }
+            .sun-glow {
+                position: absolute;
+                top: 38%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 340px;
+                height: 340px;
+                border-radius: 50%;
+                pointer-events: none;
+                background: radial-gradient(
+                    circle,
+                    rgba(253, 216, 53, 0.22) 0%,
+                    rgba(245, 166, 35, 0.07) 50%,
+                    transparent 72%
+                );
+            }
+            .cloud {
+                position: absolute;
+                border-radius: 50%;
+                filter: blur(22px);
+            }
+            .c1 {
+                width: 360px;
+                height: 110px;
+                background: rgba(255, 215, 170, 0.42);
+                top: 7%;
+                left: 2%;
+                animation: drift 22s ease-in-out infinite;
+            }
+            .c2 {
+                width: 220px;
+                height: 75px;
+                background: rgba(255, 180, 130, 0.32);
+                top: 14%;
+                left: 16%;
+                animation: drift 28s ease-in-out infinite reverse;
+            }
+            .c3 {
+                width: 420px;
+                height: 120px;
+                background: rgba(255, 235, 195, 0.38);
+                top: 4%;
+                right: -2%;
+                animation: drift 26s ease-in-out infinite;
+            }
+            .c4 {
+                width: 180px;
+                height: 65px;
+                background: rgba(190, 150, 220, 0.32);
+                top: 22%;
+                right: 20%;
+                animation: drift 19s ease-in-out infinite reverse;
+            }
+            .c5 {
+                width: 260px;
+                height: 85px;
+                background: rgba(255, 200, 155, 0.3);
+                top: 30%;
+                left: 38%;
+                animation: drift 32s ease-in-out infinite;
+            }
+            .c6 {
+                width: 120px;
+                height: 48px;
+                background: rgba(255, 255, 255, 0.48);
+                top: 2%;
+                left: 52%;
+                animation: drift 15s ease-in-out infinite reverse;
+            }
+            @keyframes drift {
+                0%,
+                100% {
+                    transform: translateX(0) translateY(0);
+                }
+                33% {
+                    transform: translateX(20px) translateY(-9px);
+                }
+                66% {
+                    transform: translateX(-14px) translateY(7px);
+                }
+            }
+            .bird {
+                position: absolute;
+                width: 16px;
+                height: 5px;
+                border-top: 1.5px solid rgba(40, 10, 70, 0.4);
+                border-radius: 50% 50% 0 0;
+                animation: fly linear infinite;
+            }
+            .bird::after {
+                content: "";
+                position: absolute;
+                right: -9px;
+                top: 0;
+                width: 9px;
+                height: 5px;
+                border-top: 1.5px solid rgba(40, 10, 70, 0.4);
+                border-radius: 50% 50% 0 0;
+            }
+            .b1 {
+                top: 17%;
+                left: -6%;
+                animation-duration: 18s;
+            }
+            .b2 {
+                top: 22%;
+                left: -12%;
+                animation-duration: 23s;
+                animation-delay: 4s;
+                transform: scale(0.7);
+            }
+            .b3 {
+                top: 14%;
+                left: -18%;
+                animation-duration: 20s;
+                animation-delay: 8s;
+                transform: scale(0.55);
+            }
+            @keyframes fly {
+                from {
+                    left: -8%;
+                }
+                to {
+                    left: 110%;
+                }
+            }
+            .mtn-far {
+                position: absolute;
+                bottom: 32%;
+                left: 0;
+                right: 0;
+                height: 290px;
+            }
+            .mtn-far svg,
+            .mtn-mid svg,
+            .hills svg,
+            .flowers svg {
+                width: 100%;
+                height: 100%;
+            }
+            .mtn-mid {
+                position: absolute;
+                bottom: 24%;
+                left: 0;
+                right: 0;
+                height: 270px;
+            }
+            .hills {
+                position: absolute;
+                bottom: 10%;
+                left: 0;
+                right: 0;
+                height: 290px;
+            }
+            .flowers {
+                position: absolute;
+                bottom: 9%;
+                left: 0;
+                right: 0;
+                height: 80px;
+                overflow: hidden;
+            }
+            .water {
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: 24%;
+                background: linear-gradient(
+                    180deg,
+                    rgba(110, 175, 210, 0.72) 0%,
+                    rgba(55, 105, 175, 0.93) 45%,
+                    rgba(15, 45, 110, 1) 100%
+                );
+                border-radius: 52% 52% 0 0/16% 16% 0 0;
+            }
+            .water::before {
+                content: "";
+                position: absolute;
+                inset: 0;
+                background: repeating-linear-gradient(
+                    180deg,
+                    transparent 0,
+                    transparent 9px,
+                    rgba(255, 255, 255, 0.035) 9px,
+                    rgba(255, 255, 255, 0.035) 11px
+                );
+            }
+            .water::after {
+                content: "";
+                position: absolute;
+                top: 0;
+                left: 44%;
+                transform: translateX(-50%);
+                width: 180px;
+                height: 100%;
+                filter: blur(10px);
+                background: linear-gradient(
+                    180deg,
+                    rgba(253, 216, 53, 0.38) 0%,
+                    rgba(245, 166, 35, 0.08) 100%
+                );
+            }
+            .s-vignette {
+                position: absolute;
+                inset: 0;
+                pointer-events: none;
+                z-index: 9;
+                background: radial-gradient(
+                    ellipse at center,
+                    transparent 45%,
+                    rgba(0, 0, 0, 0.4) 100%
+                );
+            }
+            .s-top-fade {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 22%;
+                pointer-events: none;
+                z-index: 9;
+                background: linear-gradient(
+                    to bottom,
+                    rgba(8, 3, 22, 0.65) 0%,
+                    transparent 100%
+                );
+            }
+            .s-bottom-fade {
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: 42%;
+                pointer-events: none;
+                z-index: 9;
+                background: linear-gradient(
+                    to top,
+                    rgba(12, 5, 30, 0.92) 0%,
+                    transparent 100%
+                );
+            }
+            .hero-text {
+                position: absolute;
+                top: 52%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 16px;
+                text-align: center;
+                z-index: 20;
+                width: 100%;
+                padding: 0 24px;
+            }
+            .hero-heading {
+                font-family: "Fraunces", serif;
+                font-size: clamp(2.8rem, 6.5vw, 5rem);
+                font-weight: 800;
+                line-height: 1.07;
+                color: #fef9ef;
+                letter-spacing: -0.025em;
+                text-shadow: 0 4px 48px rgba(0, 0, 0, 0.38);
+                opacity: 0;
+                animation: riseUp 0.95s 0.15s cubic-bezier(0.22, 1, 0.36, 1)
+                    forwards;
+            }
+            .hero-heading em {
+                font-style: italic;
+                font-weight: 300;
+                color: #f5c842;
+            }
+            .hero-sub {
+                font-family: "JetBrains Mono", monospace;
+                font-size: 0.7rem;
+                letter-spacing: 0.1em;
+                text-transform: uppercase;
+                color: rgba(255, 255, 255, 0.4);
+                opacity: 0;
+                animation: riseUp 0.95s 0.35s cubic-bezier(0.22, 1, 0.36, 1)
+                    forwards;
+            }
+            .scroll-cue {
+                position: absolute;
+                bottom: 36px;
+                left: 50%;
+                transform: translateX(-50%);
+                z-index: 20;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 10px;
+                opacity: 0;
+                animation: riseUp 0.95s 0.7s cubic-bezier(0.22, 1, 0.36, 1)
+                    forwards;
+                cursor: pointer;
+                text-decoration: none;
+            }
+            .scroll-cue span {
+                font-family: "JetBrains Mono", monospace;
+                font-size: 0.58rem;
+                letter-spacing: 0.16em;
+                text-transform: uppercase;
+                color: rgba(255, 255, 255, 0.32);
+            }
+            .scroll-cue-line {
+                width: 1px;
+                height: 44px;
+                background: linear-gradient(
+                    to bottom,
+                    rgba(255, 255, 255, 0),
+                    rgba(255, 255, 255, 0.5)
+                );
+                animation: pulse-line 1.8s ease-in-out infinite;
+            }
+            @keyframes pulse-line {
+                0%,
+                100% {
+                    opacity: 0.4;
+                }
+                50% {
+                    opacity: 1;
+                }
+            }
+
+            /* ════════════════════════════
+    SECTION 2 — DARK CARD
+ ════════════════════════════ */
+            #cardSection {
+                width: 100%;
+                min-height: 100vh;
+                background: #000;
+                display: grid;
+                place-items: center;
+                padding: 80px 24px;
+                position: relative;
+            }
+            #cardSection::before {
+                content: "";
+                position: absolute;
+                inset: 0;
+                pointer-events: none;
+                background:
+                    radial-gradient(
+                        circle at 18% 30%,
+                        rgba(91, 54, 80, 0.18),
+                        transparent 45%
+                    ),
+                    radial-gradient(
+                        circle at 80% 70%,
+                        rgba(75, 44, 67, 0.14),
+                        transparent 45%
+                    );
+            }
+            .landing-card {
+                position: relative;
+                z-index: 1;
+                width: min(840px, 100%);
+                border-radius: 24px;
+                padding: 72px 52px 60px;
+                border: 1px solid rgba(75, 44, 67, 0.75);
+                background: linear-gradient(180deg, #050505, #080808);
+                text-align: center;
+                box-shadow:
+                    rgba(75, 44, 67, 0.42) 0 0 0 1px,
+                    0 40px 80px rgba(0, 0, 0, 0.7);
+                opacity: 0;
+                transform: translateY(40px);
+                transition:
+                    opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+                    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+            }
+            .landing-card.visible {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            .landing-kicker {
+                display: inline-flex;
+                border-radius: 999px;
+                padding: 8px 14px;
+                font-family: "JetBrains Mono", monospace;
+                font-size: 11px;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                color: #a6a6a6;
+                background: rgba(255, 255, 255, 0.07);
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                margin-bottom: 20px;
+            }
+            .landing-title {
+                margin: 0 auto 16px;
+                font-family: "Sora", sans-serif;
+                font-size: clamp(2.4rem, 6vw, 4.2rem);
+                line-height: 0.92;
+                letter-spacing: -0.05em;
+                color: #fef9ef;
+            }
+            .landing-title em {
+                font-style: normal;
+                background: linear-gradient(135deg, #f472b6, #fbbf24);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+            }
+            .landing-copy {
+                margin: 0 auto 30px;
+                max-width: 54ch;
+                color: rgba(255, 255, 255, 0.5);
+                font-size: 17px;
+                line-height: 1.65;
+            }
+            .stat-row {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 12px;
+                margin-bottom: 28px;
+            }
+            .stat-item {
+                padding: 16px 14px;
+                border-radius: 16px;
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                text-align: center;
+            }
+            .stat-item strong {
+                display: block;
+                font-size: 20px;
+                margin-bottom: 5px;
+                color: #fef9ef;
+            }
+            .stat-item span {
+                font-size: 12px;
+                color: rgba(255, 255, 255, 0.36);
+                line-height: 1.5;
+            }
+            .pill-row {
+                display: flex;
+                justify-content: center;
+                flex-wrap: wrap;
+                gap: 10px;
+                margin-bottom: 32px;
+            }
+            .pill {
+                padding: 9px 16px;
+                border-radius: 999px;
+                border: 1px solid rgba(255, 255, 255, 0.11);
+                background: rgba(255, 255, 255, 0.04);
+                color: rgba(255, 255, 255, 0.45);
+                font-size: 12px;
+                font-family: "JetBrains Mono", monospace;
+                letter-spacing: 0.04em;
+            }
+            .enter-btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 10px;
+                border: 0;
+                border-radius: 14px;
+                padding: 16px 36px;
+                font-family: "JetBrains Mono", monospace;
+                font-size: 0.78rem;
+                letter-spacing: 0.08em;
+                cursor: pointer;
+                background: linear-gradient(135deg, #5b3650, #4b2c43);
+                color: #f7eef4;
+                box-shadow: 0 22px 34px rgba(75, 44, 67, 0.45);
+                transition:
+                    transform 0.2s,
+                    box-shadow 0.2s;
+            }
+            .enter-btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 28px 42px rgba(75, 44, 67, 0.55);
+            }
+            .enter-btn svg {
+                width: 13px;
+                height: 13px;
+                opacity: 0.7;
+            }
+            .landing-note {
+                margin-top: 16px;
+                color: rgba(255, 255, 255, 0.28);
+                font-size: 11px;
+                font-family: "JetBrains Mono", monospace;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+            }
+
+            /* ════════════════════════════
+    APP SHELL
+ ════════════════════════════ */
+            :root {
+                --paper: #000;
+                --paper-strong: #090909;
+                --ink: #fff;
+                --ink-soft: #d9d9d9;
+                --muted: #a6a6a6;
+                --panel: rgba(9, 9, 9, 0.92);
+                --panel-strong: #090909;
+                --accent: #f472b6;
+                --accent-soft: rgba(244, 114, 182, 0.16);
+                --secondary: #fff;
+                --success: #039855;
+                --warning: #b54708;
+                --danger: #b42318;
+                --shadow: 0 24px 70px rgba(0, 0, 0, 0.4);
+                --radius-xl: 32px;
+                --radius-lg: 24px;
+                --radius-md: 18px;
+            }
+            #appShell {
+                background:
+                    radial-gradient(
+                        circle at 10% 12%,
+                        rgba(244, 114, 182, 0.1),
+                        transparent 26%
+                    ),
+                    radial-gradient(
+                        circle at 84% 16%,
+                        rgba(244, 114, 182, 0.07),
+                        transparent 22%
+                    ),
+                    radial-gradient(
+                        circle at 60% 72%,
+                        rgba(244, 114, 182, 0.08),
+                        transparent 28%
+                    ),
+                    #000;
+                min-height: 100vh;
+                position: relative;
+            }
+            #appShell::before {
+                content: "";
+                position: fixed;
+                inset: 0;
+                pointer-events: none;
+                z-index: 0;
+                background-image:
+                    linear-gradient(
+                        rgba(255, 255, 255, 0.03) 1px,
+                        transparent 1px
+                    ),
+                    linear-gradient(
+                        90deg,
+                        rgba(255, 255, 255, 0.03) 1px,
+                        transparent 1px
+                    );
+                background-size: 52px 52px;
+                mask-image: linear-gradient(
+                    180deg,
+                    rgba(0, 0, 0, 0.5),
+                    transparent 92%
+                );
+            }
+            .page {
+                position: relative;
+                z-index: 1;
+                width: min(1240px, calc(100% - 32px));
+                margin: 0 auto;
+                padding: 28px 0 64px;
+            }
+            .a-nav {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 12px 0 20px;
+                gap: 18px;
+            }
+            .brand {
+                display: inline-flex;
+                align-items: center;
+                gap: 12px;
+                text-decoration: none;
+                color: inherit;
+            }
+            .brand-mark {
+                width: 48px;
+                height: 48px;
+                border-radius: 16px;
+                background: rgba(255, 255, 255, 0.08);
+                border: 1px solid rgba(244, 114, 182, 0.22);
+                color: #ffd2ea;
+                display: grid;
+                place-items: center;
+                box-shadow: 0 12px 26px rgba(0, 0, 0, 0.35);
+            }
+            .brand-copy strong {
+                display: block;
+                font-size: 15px;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+            }
+            .brand-copy span {
+                display: block;
+                color: var(--muted);
+                font-size: 13px;
+            }
+            .nav-pill {
+                border: 1px solid rgba(255, 255, 255, 0.16);
+                border-radius: 999px;
+                background: rgba(255, 255, 255, 0.08);
+                padding: 10px 14px;
+                font-size: 12px;
+                color: var(--ink-soft);
+                backdrop-filter: blur(18px);
+                text-align: center;
+            }
+            .app-hero {
+                display: grid;
+                grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+                gap: 24px;
+                align-items: stretch;
+            }
             .hero-card,
             .panel,
             .results-shell,
             .trace-shell,
-            .empty-shell { padding: 20px; border-radius: 24px; }
-            h1 { font-size: 2.9rem; }
-            .stats,
-            .pipeline,
-            .summary-banner { grid-template-columns: 1fr; }
-            .actions { flex-direction: column; }
+            .empty-shell {
+                background: var(--panel);
+                border: 1px solid rgba(255, 77, 184, 0.2);
+                box-shadow: var(--shadow);
+                backdrop-filter: blur(18px);
+            }
+            .hero-card {
+                border-radius: var(--radius-xl);
+                padding: 40px;
+                overflow: hidden;
+                position: relative;
+            }
+            .hero-card::after {
+                content: "";
+                position: absolute;
+                right: -80px;
+                bottom: -90px;
+                width: 260px;
+                height: 260px;
+                border-radius: 50%;
+                background: radial-gradient(
+                    circle,
+                    rgba(244, 114, 182, 0.12),
+                    transparent 70%
+                );
+            }
+            .eyebrow {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 8px 12px;
+                border-radius: 999px;
+                background: rgba(255, 255, 255, 0.55);
+                border: 1px solid rgba(17, 19, 21, 0.08);
+                color: var(--ink-soft);
+                font-size: 12px;
+                text-transform: uppercase;
+                letter-spacing: 0.12em;
+            }
+            h1 {
+                margin: 20px 0 14px;
+                font-family: "Sora", sans-serif;
+                font-size: clamp(2.85rem, 4.4vw, 4.6rem);
+                line-height: 0.98;
+                font-weight: 700;
+                letter-spacing: -0.06em;
+                max-width: 11ch;
+            }
+            .hero-copy {
+                max-width: 60ch;
+                color: var(--ink-soft);
+                font-size: 18px;
+                line-height: 1.8;
+                margin-bottom: 30px;
+            }
+            .stats {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 14px;
+            }
+            .stat {
+                border-radius: 20px;
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.18);
+                padding: 18px;
+            }
+            .stat strong {
+                display: block;
+                font-size: 24px;
+                margin-bottom: 6px;
+            }
+            .stat span {
+                color: var(--muted);
+                font-size: 13px;
+                line-height: 1.55;
+            }
+            .panel {
+                border-radius: var(--radius-xl);
+                padding: 22px;
+                display: flex;
+                flex-direction: column;
+                gap: 18px;
+            }
+            .panel-top {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
+            }
+            .panel-title {
+                font-size: 13px;
+                text-transform: uppercase;
+                letter-spacing: 0.12em;
+                color: var(--muted);
+            }
+            .panel-badge {
+                padding: 8px 12px;
+                border-radius: 999px;
+                background: var(--accent-soft);
+                color: #ffd2ea;
+                font-size: 12px;
+                font-weight: 700;
+            }
+            .query-shell {
+                display: flex;
+                flex-direction: column;
+                gap: 14px;
+            }
+            .query-box {
+                min-height: 168px;
+                resize: vertical;
+                width: 100%;
+                border: 1px solid rgba(255, 255, 255, 0.16);
+                border-radius: 24px;
+                padding: 22px 20px;
+                font: inherit;
+                font-size: 16px;
+                line-height: 1.7;
+                color: var(--ink);
+                background: rgba(255, 255, 255, 0.06);
+                box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+                outline: none;
+                transition:
+                    border-color 0.2s,
+                    box-shadow 0.2s;
+            }
+            .query-box:focus {
+                border-color: rgba(255, 77, 184, 0.65);
+                box-shadow: 0 0 0 5px rgba(255, 77, 184, 0.18);
+            }
+            .actions {
+                display: flex;
+                gap: 12px;
+                flex-wrap: wrap;
+            }
             .primary-btn,
-            .secondary-btn { width: 100%; }
-            .shell-header { flex-direction: column; }
-            .header-actions { justify-content: flex-start; }
-            .nav { flex-direction: column; align-items: flex-start; }
-        }
-    </style>
-</head>
-<body>
-    <section id="landingScreen" class="landing-screen">
-        <article class="landing-card">
-            <div class="landing-kicker">Signal Desk</div>
-            <h1 class="landing-title">Research that looks designed, not dumped.</h1>
-            <p class="landing-copy">
-                Search once, scan many sources, and get one clean, traceable brief.
-            </p>
-            <button class="primary-btn" style="max-width:260px;margin:0 auto;" onclick="enterApp()">Enter Signal Desk</button>
-            <div class="landing-note">Source-ranked research, in one place.</div>
-        </article>
-    </section>
-    <div id="appShell" class="page hidden">
-        <div class="nav">
-            <a class="brand" href="#top">
-                <div class="brand-mark">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M4 15l5-5 4 4 7-8"></path>
-                        <path d="M20 8v5h-5"></path>
+            .secondary-btn {
+                border: 0;
+                border-radius: 18px;
+                padding: 16px 20px;
+                font: inherit;
+                font-size: 14px;
+                font-weight: 800;
+                cursor: pointer;
+                transition:
+                    transform 0.2s,
+                    box-shadow 0.2s,
+                    opacity 0.2s;
+            }
+            .primary-btn {
+                background: linear-gradient(135deg, #f472b6, #f9a8d4);
+                color: #fff;
+                box-shadow: 0 22px 34px rgba(244, 114, 182, 0.24);
+                flex: 1;
+            }
+            .secondary-btn {
+                background: rgba(255, 255, 255, 0.08);
+                color: var(--ink-soft);
+                border: 1px solid rgba(255, 255, 255, 0.16);
+            }
+            .primary-btn:hover,
+            .secondary-btn:hover {
+                transform: translateY(-1px);
+            }
+            .primary-btn:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+                transform: none;
+            }
+            .suggestions {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            .suggestion-chip {
+                padding: 11px 14px;
+                border-radius: 999px;
+                border: 1px solid rgba(255, 255, 255, 0.16);
+                background: rgba(255, 255, 255, 0.06);
+                color: var(--ink-soft);
+                font-size: 13px;
+                cursor: pointer;
+                transition:
+                    transform 0.2s,
+                    border-color 0.2s,
+                    background 0.2s;
+            }
+            .suggestion-chip:hover {
+                transform: translateY(-1px);
+                border-color: rgba(244, 114, 182, 0.42);
+                background: rgba(255, 255, 255, 0.12);
+            }
+            .pipeline {
+                display: none;
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                gap: 14px;
+                margin-top: 24px;
+            }
+            .step {
+                padding: 16px;
+                border-radius: 20px;
+                background: rgba(255, 255, 255, 0.55);
+                border: 1px solid rgba(17, 19, 21, 0.08);
+                min-height: 108px;
+            }
+            .step-index {
+                width: 34px;
+                height: 34px;
+                border-radius: 12px;
+                display: grid;
+                place-items: center;
+                background: rgba(17, 19, 21, 0.06);
+                color: var(--ink-soft);
+                font-size: 12px;
+                font-weight: 800;
+                margin-bottom: 18px;
+            }
+            .step.active {
+                background: rgba(37, 99, 235, 0.08);
+                border-color: rgba(37, 99, 235, 0.16);
+            }
+            .step.done {
+                background: rgba(25, 135, 84, 0.1);
+                border-color: rgba(25, 135, 84, 0.16);
+            }
+            .step.active .step-index {
+                background: var(--accent);
+                color: #fff;
+                box-shadow: 0 12px 22px rgba(37, 99, 235, 0.24);
+            }
+            .step.done .step-index {
+                background: var(--success);
+                color: #fff;
+            }
+            .step h3 {
+                margin: 0 0 8px;
+                font-size: 16px;
+            }
+            .step p {
+                margin: 0;
+                font-size: 13px;
+                color: var(--muted);
+                line-height: 1.6;
+            }
+            .results-grid {
+                display: grid;
+                grid-template-columns: minmax(0, 1.2fr) minmax(
+                        280px,
+                        min(36vw, 420px)
+                    );
+                gap: 24px;
+                margin-top: 26px;
+                align-items: start;
+                min-width: 0;
+            }
+            .results-shell,
+            .trace-shell,
+            .empty-shell {
+                border-radius: var(--radius-xl);
+                padding: 28px;
+                min-width: 0;
+            }
+            .results-shell,
+            .trace-shell {
+                overflow-x: hidden;
+            }
+            .shell-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                gap: 16px;
+                margin-bottom: 22px;
+            }
+            .shell-header h2 {
+                margin: 0;
+                font-size: 30px;
+                line-height: 1.1;
+                letter-spacing: -0.04em;
+            }
+            .shell-header p {
+                margin: 8px 0 0;
+                color: var(--muted);
+                font-size: 14px;
+                line-height: 1.6;
+            }
+            .header-actions {
+                display: flex;
+                gap: 10px;
+                flex-wrap: wrap;
+                justify-content: flex-end;
+            }
+            .ghost-pill {
+                border-radius: 999px;
+                padding: 10px 12px;
+                background: rgba(255, 255, 255, 0.6);
+                border: 1px solid rgba(17, 19, 21, 0.08);
+                color: var(--ink-soft);
+                font-size: 12px;
+                font-weight: 700;
+            }
+            .summary-banner {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 12px;
+                margin-bottom: 18px;
+            }
+            .summary-tile {
+                padding: 16px 18px;
+                border-radius: 20px;
+                background: rgba(255, 255, 255, 0.06);
+                border: 1px solid rgba(255, 255, 255, 0.12);
+            }
+            .summary-tile label {
+                display: block;
+                font-size: 11px;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                color: var(--muted);
+                margin-bottom: 8px;
+            }
+            .summary-tile strong {
+                display: block;
+                font-size: 18px;
+                line-height: 1.35;
+            }
+            .source-grid {
+                display: grid;
+                gap: 14px;
+            }
+            .source-card {
+                border-radius: 26px;
+                padding: 24px;
+                background: var(--panel-strong);
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                box-shadow: 0 18px 34px rgba(0, 0, 0, 0.4);
+            }
+            .source-top {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
+                margin-bottom: 16px;
+            }
+            .source-site {
+                font-size: 18px;
+                font-weight: 800;
+                letter-spacing: -0.03em;
+                font-family: "Sora", sans-serif;
+            }
+            .source-link {
+                color: var(--secondary);
+                text-decoration: none;
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .source-link:hover {
+                color: var(--accent);
+            }
+            .source-link svg {
+                width: 16px;
+                height: 16px;
+                opacity: 0.6;
+            }
+            .source-badge {
+                border-radius: 999px;
+                padding: 8px 12px;
+                background: var(--accent-soft);
+                color: #ffd2ea;
+                font-size: 12px;
+                font-weight: 800;
+            }
+            .source-summary {
+                color: var(--ink-soft);
+                line-height: 1.8;
+                font-size: 15px;
+                margin: 0 0 14px;
+            }
+            .source-list {
+                display: grid;
+                gap: 10px;
+                margin: 0;
+                padding: 0;
+                list-style: none;
+            }
+            .source-list li {
+                padding: 14px 16px;
+                border-radius: 18px;
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                line-height: 1.7;
+                font-size: 14px;
+                color: var(--ink-soft);
+            }
+            .trace-stack {
+                display: grid;
+                gap: 14px;
+            }
+            .trace-card {
+                border-radius: 22px;
+                padding: 18px;
+                background: rgba(255, 255, 255, 0.62);
+                border: 1px solid rgba(17, 19, 21, 0.08);
+            }
+            .trace-card h3 {
+                margin: 0 0 12px;
+                font-size: 14px;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                color: var(--muted);
+            }
+            .tag-row,
+            .trace-list {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                min-width: 0;
+                max-width: 100%;
+            }
+            .trace-list--scrape {
+                flex-direction: column;
+                flex-wrap: nowrap;
+                align-items: stretch;
+            }
+            .trace-scrape-row {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr);
+                gap: 6px;
+                padding: 10px 12px;
+                border-radius: 14px;
+                background: rgba(255, 255, 255, 0.55);
+                border: 1px solid rgba(17, 19, 21, 0.07);
+                max-width: 100%;
+                overflow: hidden;
+            }
+            .trace-scrape-host {
+                font-size: 12px;
+                font-weight: 800;
+                color: var(--ink);
+                word-break: break-word;
+                overflow-wrap: anywhere;
+            }
+            .trace-scrape-meta {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 8px;
+                min-width: 0;
+            }
+            .trace-scrape-detail {
+                flex: 1 1 100%;
+                min-width: 0;
+                margin: 0;
+                font-size: 11px;
+                font-weight: 600;
+                color: var(--muted);
+                line-height: 1.45;
+                word-break: break-word;
+                overflow-wrap: anywhere;
+                white-space: normal;
+            }
+            .tag,
+            .trace-pill {
+                border-radius: 999px;
+                padding: 9px 12px;
+                font-size: 12px;
+                font-weight: 700;
+                background: rgba(17, 19, 21, 0.05);
+                color: var(--ink-soft);
+                border: 1px solid rgba(17, 19, 21, 0.06);
+                max-width: 100%;
+                overflow-wrap: anywhere;
+                word-break: break-word;
+            }
+            .trace-pill.ok {
+                background: rgba(25, 135, 84, 0.1);
+                color: var(--success);
+            }
+            .trace-pill.blocked {
+                background: rgba(184, 106, 0, 0.12);
+                color: var(--warning);
+            }
+            .trace-pill.error,
+            .trace-pill.empty {
+                background: rgba(180, 35, 24, 0.1);
+                color: var(--danger);
+            }
+            .raw-box {
+                white-space: pre-wrap;
+                background: #15171a;
+                color: #f5f7fa;
+                padding: 18px;
+                border-radius: 18px;
+                font-size: 13px;
+                line-height: 1.7;
+                max-height: 320px;
+                overflow: auto;
+            }
+            .empty-shell {
+                margin-top: 26px;
+                text-align: center;
+                padding: 42px 28px;
+            }
+            .empty-shell strong {
+                display: block;
+                font-size: 22px;
+                margin-bottom: 10px;
+            }
+            .empty-shell p {
+                margin: 0;
+                color: var(--muted);
+                line-height: 1.75;
+            }
+            .hidden {
+                display: none !important;
+            }
+
+            @keyframes riseUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+            @keyframes fadeDown {
+                from {
+                    opacity: 0;
+                    transform: translateY(-16px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            @media (max-width: 768px) {
+                .s-nav {
+                    left: 24px;
+                    right: 24px;
+                    padding: 12px 20px;
+                }
+                .s-nav-links {
+                    display: none;
+                }
+                .landing-card {
+                    padding: 48px 24px;
+                }
+                .stat-row {
+                    grid-template-columns: 1fr;
+                }
+            }
+            @media (max-width: 1040px) {
+                .app-hero,
+                .results-grid {
+                    grid-template-columns: 1fr;
+                }
+            }
+            @media (max-width: 760px) {
+                .page {
+                    width: min(100% - 20px, 100%);
+                }
+                .hero-card,
+                .panel,
+                .results-shell,
+                .trace-shell,
+                .empty-shell {
+                    padding: 20px;
+                    border-radius: 24px;
+                }
+                h1 {
+                    font-size: 2.9rem;
+                }
+                .stats,
+                .pipeline,
+                .summary-banner {
+                    grid-template-columns: 1fr;
+                }
+                .actions {
+                    flex-direction: column;
+                }
+                .primary-btn,
+                .secondary-btn {
+                    width: 100%;
+                }
+                .shell-header {
+                    flex-direction: column;
+                }
+                .header-actions {
+                    justify-content: flex-start;
+                }
+                .a-nav {
+                    flex-direction: column;
+                    align-items: flex-start;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <!-- ══════════════════════════════════════════
+      LANDING WRAPPER (scenic → dark card)
+ ══════════════════════════════════════════ -->
+        <div id="landingWrapper">
+            <!-- SECTION 1: Full-viewport scenic hero -->
+            <section id="scenicSection">
+                <nav class="s-nav">
+                    <div class="s-nav-logo">
+                        ScrapeX <span>— platform</span>
+                    </div>
+                    <ul class="s-nav-links">
+                        <li><a href="#cardSection">Product</a></li>
+                        <li><a href="#cardSection">Customers</a></li>
+                        <li><a href="#cardSection">Company</a></li>
+                    </ul>
+                </nav>
+
+                <div class="sky"></div>
+                <div class="sun-glow"></div>
+                <div class="sun"></div>
+                <div class="cloud c1"></div>
+                <div class="cloud c2"></div>
+                <div class="cloud c3"></div>
+                <div class="cloud c4"></div>
+                <div class="cloud c5"></div>
+                <div class="cloud c6"></div>
+                <div class="bird b1"></div>
+                <div class="bird b2"></div>
+                <div class="bird b3"></div>
+
+                <div class="mtn-far">
+                    <svg
+                        viewBox="0 0 1440 290"
+                        preserveAspectRatio="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                    >
+                        <defs>
+                            <linearGradient
+                                id="mfg"
+                                x1="0"
+                                y1="0"
+                                x2="0"
+                                y2="1"
+                            >
+                                <stop
+                                    offset="0%"
+                                    stop-color="#7c3aed"
+                                    stop-opacity=".85"
+                                />
+                                <stop
+                                    offset="100%"
+                                    stop-color="#4c1d95"
+                                    stop-opacity=".75"
+                                />
+                            </linearGradient>
+                        </defs>
+                        <path
+                            d="M0,290 L0,210 C70,190 120,110 210,95 C300,80 340,155 420,135 C500,115 545,42 635,32 C725,22 762,108 845,118 C928,128 962,65 1058,52 C1154,39 1192,128 1275,148 C1338,162 1400,138 1440,128 L1440,290 Z"
+                            fill="url(#mfg)"
+                        />
                     </svg>
                 </div>
-                <div class="brand-copy">
-                    <strong>Signal Desk</strong>
-                    <span>Autonomous source discovery and extraction</span>
+                <div class="mtn-mid">
+                    <svg
+                        viewBox="0 0 1440 270"
+                        preserveAspectRatio="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                    >
+                        <defs>
+                            <linearGradient
+                                id="mmg"
+                                x1="0"
+                                y1="0"
+                                x2="0"
+                                y2="1"
+                            >
+                                <stop offset="0%" stop-color="#0e6b6b" />
+                                <stop offset="100%" stop-color="#073f3f" />
+                            </linearGradient>
+                        </defs>
+                        <path
+                            d="M0,270 L0,205 C55,195 95,148 158,126 C221,104 272,165 344,154 C416,143 452,82 534,62 C616,42 662,106 752,118 C842,130 874,74 965,58 C1056,42 1094,116 1163,138 C1232,160 1314,118 1385,105 L1440,98 L1440,270 Z"
+                            fill="url(#mmg)"
+                        />
+                    </svg>
                 </div>
-            </a>
-            <div class="nav-pill">Built for multi-source answers, not single-page guesses</div>
+                <div class="hills">
+                    <svg
+                        viewBox="0 0 1440 290"
+                        preserveAspectRatio="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                    >
+                        <defs>
+                            <linearGradient id="hg" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#22c55e" />
+                                <stop offset="55%" stop-color="#16a34a" />
+                                <stop offset="100%" stop-color="#0f5a28" />
+                            </linearGradient>
+                            <radialGradient id="hl" cx="22%" cy="18%" r="58%">
+                                <stop
+                                    offset="0%"
+                                    stop-color="#4ade80"
+                                    stop-opacity=".55"
+                                />
+                                <stop offset="100%" stop-color="transparent" />
+                            </radialGradient>
+                            <radialGradient id="hr" cx="72%" cy="14%" r="52%">
+                                <stop
+                                    offset="0%"
+                                    stop-color="#4ade80"
+                                    stop-opacity=".45"
+                                />
+                                <stop offset="100%" stop-color="transparent" />
+                            </radialGradient>
+                        </defs>
+                        <path
+                            d="M0,290 L0,215 C75,200 115,238 198,208 C281,178 305,125 384,104 C463,83 494,146 563,165 C632,184 664,146 722,124 C780,102 813,154 882,173 C951,192 982,154 1062,133 C1142,112 1183,184 1262,204 C1341,224 1402,198 1440,192 L1440,290 Z"
+                            fill="url(#hg)"
+                        />
+                        <path
+                            d="M0,290 L0,215 C75,200 115,238 198,208 C281,178 305,125 384,104 C463,83 494,146 563,165 C632,184 664,146 722,124 C780,102 813,154 882,173 C951,192 982,154 1062,133 C1142,112 1183,184 1262,204 C1341,224 1402,198 1440,192 L1440,290 Z"
+                            fill="url(#hl)"
+                            opacity=".5"
+                        />
+                        <path
+                            d="M0,290 L0,215 C75,200 115,238 198,208 C281,178 305,125 384,104 C463,83 494,146 563,165 C632,184 664,146 722,124 C780,102 813,154 882,173 C951,192 982,154 1062,133 C1142,112 1183,184 1262,204 C1341,224 1402,198 1440,192 L1440,290 Z"
+                            fill="url(#hr)"
+                            opacity=".4"
+                        />
+                    </svg>
+                </div>
+                <div class="flowers">
+                    <svg
+                        viewBox="0 0 1440 80"
+                        preserveAspectRatio="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                    >
+                        <circle
+                            cx="72"
+                            cy="52"
+                            r="4.5"
+                            fill="#f9a8d4"
+                            opacity=".92"
+                        />
+                        <circle
+                            cx="88"
+                            cy="43"
+                            r="3"
+                            fill="#ec4899"
+                            opacity=".85"
+                        />
+                        <circle
+                            cx="104"
+                            cy="56"
+                            r="4"
+                            fill="#fbcfe8"
+                            opacity=".9"
+                        />
+                        <circle
+                            cx="122"
+                            cy="46"
+                            r="3.5"
+                            fill="#f9a8d4"
+                            opacity=".75"
+                        />
+                        <circle
+                            cx="140"
+                            cy="53"
+                            r="5"
+                            fill="#ec4899"
+                            opacity=".9"
+                        />
+                        <circle
+                            cx="165"
+                            cy="49"
+                            r="3"
+                            fill="#fff"
+                            opacity=".88"
+                        />
+                        <circle
+                            cx="182"
+                            cy="57"
+                            r="4"
+                            fill="#fef08a"
+                            opacity=".92"
+                        />
+                        <circle
+                            cx="238"
+                            cy="51"
+                            r="5"
+                            fill="#fde047"
+                            opacity=".92"
+                        />
+                        <circle
+                            cx="258"
+                            cy="43"
+                            r="3"
+                            fill="#facc15"
+                            opacity=".85"
+                        />
+                        <circle
+                            cx="276"
+                            cy="57"
+                            r="4"
+                            fill="#fde047"
+                            opacity=".92"
+                        />
+                        <circle
+                            cx="1095"
+                            cy="49"
+                            r="4"
+                            fill="#f9a8d4"
+                            opacity=".9"
+                        />
+                        <circle
+                            cx="1118"
+                            cy="56"
+                            r="5.5"
+                            fill="#ec4899"
+                            opacity=".82"
+                        />
+                        <circle
+                            cx="1140"
+                            cy="45"
+                            r="3.5"
+                            fill="#fbcfe8"
+                            opacity=".92"
+                        />
+                        <circle
+                            cx="1162"
+                            cy="53"
+                            r="4"
+                            fill="#fff"
+                            opacity=".82"
+                        />
+                        <circle
+                            cx="1215"
+                            cy="54"
+                            r="5"
+                            fill="#fde047"
+                            opacity=".92"
+                        />
+                        <circle
+                            cx="1248"
+                            cy="43"
+                            r="3.5"
+                            fill="#facc15"
+                            opacity=".85"
+                        />
+                        <circle
+                            cx="1278"
+                            cy="51"
+                            r="4.5"
+                            fill="#f9a8d4"
+                            opacity=".92"
+                        />
+                        <circle
+                            cx="1338"
+                            cy="45"
+                            r="5"
+                            fill="#fff"
+                            opacity=".88"
+                        />
+                        <circle
+                            cx="1368"
+                            cy="53"
+                            r="3.5"
+                            fill="#fde047"
+                            opacity=".92"
+                        />
+                    </svg>
+                </div>
+                <div class="water"></div>
+                <div class="s-top-fade"></div>
+                <div class="s-vignette"></div>
+                <div class="s-bottom-fade"></div>
+
+                <div class="hero-text">
+                    <h1 class="hero-heading">
+                        The new standard<br />in <em>everything.</em>
+                    </h1>
+                    <p class="hero-sub">
+                        Source-ranked research &nbsp;·&nbsp; One clean brief
+                    </p>
+                    <button
+                        class="s-nav-cta"
+                        style="margin-top: 24px"
+                        onclick="enterApp()"
+                    >
+                        Let's Go!
+                    </button>
+                </div>
+            </section>
+
+            <!-- SECTION 2: Dark ScrapeX feature card -->
+            <section id="cardSection">
+                <article class="landing-card" id="landingCard">
+                    <div class="landing-kicker">
+                        ScrapeX — Research Platform
+                    </div>
+                    <h2 class="landing-title">
+                        Research that looks <em>designed,</em> not dumped.
+                    </h2>
+                    <p class="landing-copy">
+                        Search once, scan many sources, and get one clean
+                        traceable brief — prices, specs, news, quotes, or jobs,
+                        all formatted into cards you can actually scan.
+                    </p>
+                    <div class="stat-row">
+                        <div class="stat-item">
+                            <strong>3+</strong
+                            ><span
+                                >Successful sources per query with smart
+                                fallbacks</span
+                            >
+                        </div>
+                        <div class="stat-item">
+                            <strong>Ranked</strong
+                            ><span
+                                >Primary and fallback queues scored per
+                                query</span
+                            >
+                        </div>
+                        <div class="stat-item">
+                            <strong>Readable</strong
+                            ><span
+                                >Source cards with clean bullets, not raw
+                                text</span
+                            >
+                        </div>
+                    </div>
+                    <div class="pill-row">
+                        <span class="pill">Live source ranking</span>
+                        <span class="pill">Fallback-aware</span>
+                        <span class="pill">Multi-source answers</span>
+                        <span class="pill">Export to CSV</span>
+                    </div>
+                    <div class="landing-note">
+                        Trusted by 12,000+ teams &nbsp;·&nbsp; No card required
+                        &nbsp;·&nbsp; Free forever
+                    </div>
+                </article>
+            </section>
         </div>
 
-        <section class="hero">
-            <div class="hero-card">
-                <div class="eyebrow">Live site selection · fallback aware · source-first</div>
-                <h1>Research that looks designed, not dumped.</h1>
-                <p class="hero-copy">
-                    Ask for prices, specs, news, quotes, or job data. The agent ranks live sources, keeps backup candidates ready,
-                    scrapes the strongest pages, and turns the answer into a readable brief.
-                </p>
-                <div class="stats">
-                    <div class="stat">
-                        <strong>3+</strong>
-                        <span>Target successful sources for price-heavy requests when fallbacks are available.</span>
-                    </div>
-                    <div class="stat">
-                        <strong>Ranked</strong>
-                        <span>Primary and fallback queues are scored per query instead of pinned to one rigid list.</span>
-                    </div>
-                    <div class="stat">
-                        <strong>Readable</strong>
-                        <span>Answers render as source cards with clean bullets instead of raw model text.</span>
-                    </div>
-                </div>
-            </div>
-
-            <aside class="panel">
-                <div class="panel-top">
-                    <div class="panel-title">New brief</div>
-                    <div class="panel-badge">Top-notch mode</div>
-                </div>
-                <div class="query-shell">
-                    <textarea id="query" class="query-box" placeholder="Try: Compare Samsung Galaxy S25 prices across Indian stores&#10;Or: Find Samsung S25 specifications from the most reliable sites"></textarea>
-                    <div class="actions">
-                        <button id="askBtn" class="primary-btn" onclick="ask()">Launch Research</button>
-                        <button class="secondary-btn" onclick="scrollToResults()">Jump to results</button>
-                    </div>
-                </div>
-                <div class="suggestions">
-                    <button class="suggestion-chip" onclick="setQuery('Compare Samsung Galaxy S25 prices across Indian stores')">Samsung S25 prices</button>
-                    <button class="suggestion-chip" onclick="setQuery('Samsung Galaxy S25 specifications')">Samsung S25 specs</button>
-                    <button class="suggestion-chip" onclick="setQuery('Latest AI news today')">AI news</button>
-                    <button class="suggestion-chip" onclick="setQuery('Quotes about success')">Quotes about success</button>
-                </div>
-            </aside>
-        </section>
-
-        <section class="pipeline" id="pipeline">
-            <article class="step" id="step1">
-                <div class="step-index">01</div>
-                <h3 id="s1">Understanding the brief</h3>
-                <p id="st1">Turning the request into search queries and source priorities.</p>
-            </article>
-            <article class="step" id="step2">
-                <div class="step-index">02</div>
-                <h3 id="s2">Selecting sources</h3>
-                <p id="st2">Scoring primary and fallback sites for this exact query.</p>
-            </article>
-            <article class="step" id="step3">
-                <div class="step-index">03</div>
-                <h3 id="s3">Extracting evidence</h3>
-                <p id="st3">Scraping the best candidates and dropping weak pages.</p>
-            </article>
-            <article class="step" id="step4">
-                <div class="step-index">04</div>
-                <h3 id="s4">Packaging results</h3>
-                <p id="st4">Formatting the answer into cards you can actually scan.</p>
-            </article>
-        </section>
-
-        <section id="emptyState" class="empty-shell">
-            <strong>Ask a query to generate a multi-source brief.</strong>
-            <p>The answer will land here as structured source cards, with a separate trace of the queries, primaries, fallbacks, and scrape outcomes.</p>
-        </section>
-
-        <section id="resultsSection" class="results-grid hidden">
-            <div class="results-shell">
-                <div class="shell-header">
-                    <div>
-                        <h2 id="resultsHeadline">Research brief</h2>
-                        <p id="resultsSubline">Structured extraction across ranked sources.</p>
-                    </div>
-                    <div class="header-actions">
-                        <button id="toggleRawBtn" class="secondary-btn" onclick="toggleRaw()">Show raw output</button>
-                        <button id="exportBtn" class="secondary-btn" onclick="exportCSV()">Export CSV</button>
-                    </div>
-                </div>
-
-                <div class="summary-banner">
-                    <div class="summary-tile">
-                        <label>Category</label>
-                        <strong id="categoryValue">-</strong>
-                    </div>
-                    <div class="summary-tile">
-                        <label>Keyword</label>
-                        <strong id="keywordValue">-</strong>
-                    </div>
-                    <div class="summary-tile">
-                        <label>Visible Sources</label>
-                        <strong id="successCount">0</strong>
-                    </div>
-                </div>
-
-                <div id="sourceGrid" class="source-grid"></div>
-                <div id="rawBox" class="raw-box hidden"></div>
-            </div>
-
-            <aside class="trace-shell">
-                <div class="shell-header">
-                    <div>
-                        <h2>Trace</h2>
-                        <p>See what the agent searched, which sites it kept in reserve, and what got rejected.</p>
-                    </div>
-                    <div class="ghost-pill" id="traceStatus">Idle</div>
-                </div>
-
-                <div class="trace-stack">
-                    <div class="trace-card">
-                        <h3>Queries Used</h3>
-                        <div id="queryTags" class="tag-row"></div>
-                    </div>
-                    <div class="trace-card">
-                        <h3>Primary Queue</h3>
-                        <div id="primaryTags" class="tag-row"></div>
-                    </div>
-                    <div class="trace-card">
-                        <h3>Fallback Queue</h3>
-                        <div id="fallbackTags" class="tag-row"></div>
-                    </div>
-                    <div class="trace-card">
-                        <h3>Scrape Outcomes</h3>
-                        <div id="scrapeTags" class="trace-list trace-list--scrape"></div>
-                    </div>
-                </div>
-            </aside>
-        </section>
-    </div>
-    <script>
-        function enterApp() {
-            document.getElementById('landingScreen').classList.add('hidden');
-            document.getElementById('appShell').classList.remove('hidden');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        let lastExtracted = '';
-        let lastResultSections = [];
-        let rawVisible = false;
-
-        function setQuery(value) {
-            document.getElementById('query').value = value;
-        }
-
-        function scrollToResults() {
-            document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-
-        function safeHtml(value) {
-            return String(value)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#39;');
-        }
-
-        function normalizeText(value) {
-            return String(value || '')
-                .replaceAll('â‚¹', '\u20B9')
-                .replaceAll('â€”', ' - ')
-                .replaceAll('â€“', ' - ')
-                .replaceAll('â€™', "'")
-                .replaceAll('â€œ', '"')
-                .replaceAll('â€', '"');
-        }
-
-        function hostnameFromUrl(value) {
-            try {
-                return new URL(value).hostname;
-            } catch {
-                return value;
-            }
-        }
-
-        function setStep(index, title, detail, state) {
-            const card = document.getElementById(`step${index}`);
-            card.className = `step ${state || ''}`;
-            document.getElementById(`s${index}`).textContent = title;
-            document.getElementById(`st${index}`).textContent = detail;
-        }
-
-        function setBusy(isBusy) {
-            const button = document.getElementById('askBtn');
-            button.disabled = isBusy;
-            button.textContent = isBusy ? 'Research in progress...' : 'Launch Research';
-        }
-
-        function renderTags(elementId, values) {
-            const el = document.getElementById(elementId);
-            if (!values || !values.length) {
-                el.innerHTML = '<span class="tag">None queued</span>';
-                return;
-            }
-            el.innerHTML = values.map(value => `<span class="tag">${safeHtml(hostnameFromUrl(value))}</span>`).join('');
-        }
-
-        function renderQueryTags(values) {
-            const el = document.getElementById('queryTags');
-            if (!values || !values.length) {
-                el.innerHTML = '<span class="tag">No query trace</span>';
-                return;
-            }
-            el.innerHTML = values.map(value => `<span class="tag">${safeHtml(value)}</span>`).join('');
-        }
-
-        function compactTraceDetail(value) {
-            const t = normalizeText(String(value || '').trim());
-            if (t.length <= 200) return t;
-            return `${t.slice(0, 197).trim()}…`;
-        }
-
-        function renderScrapeSummary(items) {
-            const el = document.getElementById('scrapeTags');
-            if (!items || !items.length) {
-                el.innerHTML = '<span class="trace-pill">No scrape attempts yet</span>';
-                return;
-            }
-            el.innerHTML = items.map(item => {
-                const host = hostnameFromUrl(item.url || 'unknown');
-                const status = item.status || 'unknown';
-                const err = item.error ? compactTraceDetail(item.error) : '';
-                const len = item.text_length ? `${item.text_length} chars` : '';
-                const detail = err ? err : len;
-                const detailLine = detail
-                    ? `<p class="trace-scrape-detail">${safeHtml(detail)}</p>`
-                    : '';
-                return `
-                    <div class="trace-scrape-row">
-                        <div class="trace-scrape-host">${safeHtml(host)}</div>
-                        <div class="trace-scrape-meta">
-                            <span class="trace-pill ${safeHtml(status)}">${safeHtml(status)}</span>
+        <!-- ══════════════════════════════════════════
+      APP SHELL
+ ══════════════════════════════════════════ -->
+        <div id="appShell" class="hidden">
+            <div class="page">
+                <nav class="a-nav">
+                    <a class="brand" href="#">
+                        <div class="brand-mark">
+                            <svg
+                                width="22"
+                                height="22"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2.2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            >
+                                <path d="M4 15l5-5 4 4 7-8" />
+                                <path d="M20 8v5h-5" />
+                            </svg>
                         </div>
-                        ${detailLine}
-                    </div>`;
-            }).join('');
-        }
+                        <div class="brand-copy">
+                            <strong>ScrapeX</strong
+                            ><span
+                                >Autonomous source discovery and
+                                extraction</span
+                            >
+                        </div>
+                    </a>
+                    <div class="nav-pill">
+                        Built for multi-source answers, not single-page guesses
+                    </div>
+                </nav>
 
-        function parseSectionsFromRaw(text) {
-            const lines = normalizeText(text).split('\n');
-            const sections = [];
-            let current = null;
+                <section class="app-hero">
+                    <div class="hero-card">
+                        <div class="eyebrow">
+                            Live site selection &nbsp;·&nbsp; fallback aware
+                            &nbsp;·&nbsp; source-first
+                        </div>
+                        <h1>Research that looks designed, not dumped.</h1>
+                        <p class="hero-copy">
+                            Ask for prices, specs, news, quotes, or job data.
+                            The agent ranks live sources, keeps backup
+                            candidates ready, scrapes the strongest pages, and
+                            turns the answer into a readable brief.
+                        </p>
+                        <div class="stats">
+                            <div class="stat">
+                                <strong>3+</strong
+                                ><span
+                                    >Target successful sources for price-heavy
+                                    requests when fallbacks are available.</span
+                                >
+                            </div>
+                            <div class="stat">
+                                <strong>Ranked</strong
+                                ><span
+                                    >Primary and fallback queues are scored per
+                                    query instead of pinned to one rigid
+                                    list.</span
+                                >
+                            </div>
+                            <div class="stat">
+                                <strong>Readable</strong
+                                ><span
+                                    >Answers render as source cards with clean
+                                    bullets instead of raw model text.</span
+                                >
+                            </div>
+                        </div>
+                    </div>
+                    <aside class="panel">
+                        <div class="panel-top">
+                            <div class="panel-title">New brief</div>
+                            <div class="panel-badge">Top-notch mode</div>
+                        </div>
+                        <div class="query-shell">
+                            <textarea
+                                id="query"
+                                class="query-box"
+                                placeholder="Try: Compare Samsung Galaxy S25 prices across Indian stores&#10;Or: Find Samsung S25 specifications from the most reliable sites"
+                            ></textarea>
+                            <div class="actions">
+                                <button
+                                    id="askBtn"
+                                    class="primary-btn"
+                                    onclick="ask()"
+                                >
+                                    Launch Research
+                                </button>
+                                <button
+                                    class="secondary-btn"
+                                    onclick="scrollToResults()"
+                                >
+                                    Jump to results
+                                </button>
+                            </div>
+                        </div>
+                        <div class="suggestions">
+                            <button
+                                class="suggestion-chip"
+                                onclick="
+                                    setQuery(
+                                        'Compare Samsung Galaxy S25 prices across Indian stores',
+                                    )
+                                "
+                            >
+                                Samsung S25 prices
+                            </button>
+                            <button
+                                class="suggestion-chip"
+                                onclick="
+                                    setQuery(
+                                        'Samsung Galaxy S25 specifications',
+                                    )
+                                "
+                            >
+                                Samsung S25 specs
+                            </button>
+                            <button
+                                class="suggestion-chip"
+                                onclick="setQuery('Latest AI news today')"
+                            >
+                                AI news
+                            </button>
+                            <button
+                                class="suggestion-chip"
+                                onclick="setQuery('Quotes about success')"
+                            >
+                                Quotes about success
+                            </button>
+                        </div>
+                    </aside>
+                </section>
 
-            for (const rawLine of lines) {
-                const line = rawLine.trim();
-                if (!line) continue;
+                <section class="pipeline" id="pipeline">
+                    <article class="step" id="step1">
+                        <div class="step-index">01</div>
+                        <h3 id="s1">Understanding the brief</h3>
+                        <p id="st1">
+                            Turning the request into search queries and source
+                            priorities.
+                        </p>
+                    </article>
+                    <article class="step" id="step2">
+                        <div class="step-index">02</div>
+                        <h3 id="s2">Selecting sources</h3>
+                        <p id="st2">
+                            Scoring primary and fallback sites for this exact
+                            query.
+                        </p>
+                    </article>
+                    <article class="step" id="step3">
+                        <div class="step-index">03</div>
+                        <h3 id="s3">Extracting evidence</h3>
+                        <p id="st3">
+                            Scraping the best candidates and dropping weak
+                            pages.
+                        </p>
+                    </article>
+                    <article class="step" id="step4">
+                        <div class="step-index">04</div>
+                        <h3 id="s4">Packaging results</h3>
+                        <p id="st4">
+                            Formatting the answer into cards you can actually
+                            scan.
+                        </p>
+                    </article>
+                </section>
 
-                const headerMatch = line.match(/^\[?([^\]]+?)\]?\s*:\s*(.*)$/);
-                if (headerMatch && (headerMatch[1].includes('.') || headerMatch[1].includes('SOURCE'))) {
-                    if (current) sections.push(current);
-                    current = { site: headerMatch[1].trim(), summary: '', items: [] };
-                    const detail = headerMatch[2].trim();
-                    if (detail.startsWith('-')) current.items.push(detail.replace(/^-\s*/, ''));
-                    else current.summary = detail;
-                    continue;
-                }
+                <section id="emptyState" class="empty-shell">
+                    <strong
+                        >Ask a query to generate a multi-source brief.</strong
+                    >
+                    <p>
+                        The answer will land here as structured source cards,
+                        with a separate trace of the queries, primaries,
+                        fallbacks, and scrape outcomes.
+                    </p>
+                </section>
 
-                if (!current) continue;
-                if (line.startsWith('-')) current.items.push(line.replace(/^-\s*/, ''));
-                else if (current.summary) current.summary += ` ${line}`;
-                else current.summary = line;
-            }
+                <section id="resultsSection" class="results-grid hidden">
+                    <div class="results-shell">
+                        <div class="shell-header">
+                            <div>
+                                <h2 id="resultsHeadline">Research brief</h2>
+                                <p id="resultsSubline">
+                                    Structured extraction across ranked sources.
+                                </p>
+                            </div>
+                            <div class="header-actions">
+                                <button
+                                    id="toggleRawBtn"
+                                    class="secondary-btn"
+                                    onclick="toggleRaw()"
+                                >
+                                    Show raw output
+                                </button>
+                                <button
+                                    class="secondary-btn"
+                                    onclick="exportCSV()"
+                                >
+                                    Export CSV
+                                </button>
+                            </div>
+                        </div>
+                        <div class="summary-banner">
+                            <div class="summary-tile">
+                                <label>Category</label
+                                ><strong id="categoryValue">-</strong>
+                            </div>
+                            <div class="summary-tile">
+                                <label>Keyword</label
+                                ><strong id="keywordValue">-</strong>
+                            </div>
+                            <div class="summary-tile">
+                                <label>Visible Sources</label
+                                ><strong id="successCount">0</strong>
+                            </div>
+                        </div>
+                        <div id="sourceGrid" class="source-grid"></div>
+                        <div id="rawBox" class="raw-box hidden"></div>
+                    </div>
+                    <aside class="trace-shell">
+                        <div class="shell-header">
+                            <div>
+                                <h2>Trace</h2>
+                                <p>
+                                    See what the agent searched, which sites it
+                                    kept in reserve, and what got rejected.
+                                </p>
+                            </div>
+                            <div class="ghost-pill" id="traceStatus">Idle</div>
+                        </div>
+                        <div class="trace-stack">
+                            <div class="trace-card">
+                                <h3>Queries Used</h3>
+                                <div id="queryTags" class="tag-row"></div>
+                            </div>
+                            <div class="trace-card">
+                                <h3>Primary Queue</h3>
+                                <div id="primaryTags" class="tag-row"></div>
+                            </div>
+                            <div class="trace-card">
+                                <h3>Fallback Queue</h3>
+                                <div id="fallbackTags" class="tag-row"></div>
+                            </div>
+                            <div class="trace-card">
+                                <h3>Scrape Outcomes</h3>
+                                <div
+                                    id="scrapeTags"
+                                    class="trace-list trace-list--scrape"
+                                ></div>
+                            </div>
+                        </div>
+                    </aside>
+                </section>
+            </div>
+        </div>
 
-            if (current) sections.push(current);
-            return sections;
-        }
-
-        function cleanSiteLabel(value) {
-            return normalizeText(value || '')
-                .replace(/^\*+|\*+$/g, '')
-                .replace(/^\[|\]$/g, '')
-                .trim();
-        }
-
-        function findSourceUrl(siteLabel, sites, sourceByHost) {
-            const cleanLabel = cleanSiteLabel(siteLabel).toLowerCase().replace(/^www\./, '');
-            if (sourceByHost && typeof sourceByHost === 'object') {
-                const candidates = [cleanLabel, 'www.' + cleanLabel];
-                for (const key of candidates) {
-                    if (sourceByHost[key]) return sourceByHost[key];
-                }
-                for (const [host, url] of Object.entries(sourceByHost)) {
-                    const h = String(host).toLowerCase().replace(/^www\./, '');
-                    if (!h) continue;
-                    if (h === cleanLabel || h.includes(cleanLabel) || cleanLabel.includes(h)) return url;
-                }
-            }
-            return (sites || []).find(u => hostnameFromUrl(u).toLowerCase().replace(/^www\./, '') === cleanLabel);
-        }
-
-        function mergeSectionsBySite(sections) {
-            const grouped = new Map();
-
-            for (const section of sections) {
-                const site = cleanSiteLabel(section.site || 'Unknown source');
-                const summary = normalizeText(section.summary || '').trim();
-                const items = (section.items || []).map(item => normalizeText(item).trim()).filter(Boolean);
-
-                if (!grouped.has(site)) {
-                    grouped.set(site, {
-                        site,
-                        summary: '',
-                        items: []
+        <script>
+            /* ── Scroll-in observer for dark card ── */
+            const obs = new IntersectionObserver(
+                function (entries) {
+                    entries.forEach(function (e) {
+                        if (e.isIntersecting) e.target.classList.add("visible");
                     });
+                },
+                { threshold: 0.1 },
+            );
+            obs.observe(document.getElementById("landingCard"));
+
+            /* ── Enter app transition ── */
+            function enterApp() {
+                const w = document.getElementById("landingWrapper");
+                w.style.transition = "opacity .45s cubic-bezier(.4,0,.2,1)";
+                w.style.opacity = "0";
+                setTimeout(function () {
+                    w.classList.add("hidden");
+                    document
+                        .getElementById("appShell")
+                        .classList.remove("hidden");
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                }, 460);
+            }
+
+            /* ── App helpers ── */
+            let lastExtracted = "",
+                lastResultSections = [],
+                rawVisible = false;
+            function setQuery(v) {
+                document.getElementById("query").value = v;
+            }
+            function scrollToResults() {
+                document
+                    .getElementById("resultsSection")
+                    .scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+            function safeHtml(v) {
+                return String(v)
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#39;");
+            }
+            function normalizeText(v) {
+                return String(v || "")
+                    .replaceAll("\u00e2\u0082\u00b9", "\u20B9")
+                    .replaceAll("\u00e2\u0080\u0093", " - ")
+                    .replaceAll("\u00e2\u0080\u0094", " - ")
+                    .replaceAll("\u00e2\u0080\u0099", "'")
+                    .replaceAll("\u00e2\u0080\u009c", '"')
+                    .replaceAll("\u00e2\u0080\u009d", '"');
+            }
+            function hostnameFromUrl(v) {
+                try {
+                    return new URL(v).hostname;
+                } catch {
+                    return v;
                 }
-
-                const target = grouped.get(site);
-
-                if (summary) {
-                    const summaryParts = summary
-                        .split(/\s*\*\s*/g)
-                        .map(part => part.trim())
-                        .filter(Boolean);
-
-                    if (summaryParts.length > 1) {
-                        target.items.push(...summaryParts);
-                    } else if (!target.summary) {
-                        target.summary = summary;
-                    } else if (target.summary !== summary) {
-                        target.items.push(summary);
+            }
+            function setStep(i, t, d, s) {
+                const c = document.getElementById("step" + i);
+                c.className = "step " + (s || "");
+                document.getElementById("s" + i).textContent = t;
+                document.getElementById("st" + i).textContent = d;
+            }
+            function setBusy(b) {
+                const btn = document.getElementById("askBtn");
+                btn.disabled = b;
+                btn.textContent = b
+                    ? "Research in progress..."
+                    : "Launch Research";
+            }
+            function renderTags(id, values) {
+                const el = document.getElementById(id);
+                if (!values || !values.length) {
+                    el.innerHTML = '<span class="tag">None queued</span>';
+                    return;
+                }
+                el.innerHTML = values
+                    .map(
+                        (v) =>
+                            '<span class="tag">' +
+                            safeHtml(hostnameFromUrl(v)) +
+                            "</span>",
+                    )
+                    .join("");
+            }
+            function renderQueryTags(values) {
+                const el = document.getElementById("queryTags");
+                if (!values || !values.length) {
+                    el.innerHTML = '<span class="tag">No query trace</span>';
+                    return;
+                }
+                el.innerHTML = values
+                    .map((v) => '<span class="tag">' + safeHtml(v) + "</span>")
+                    .join("");
+            }
+            function compactTraceDetail(v) {
+                const t = normalizeText(String(v || "").trim());
+                return t.length <= 200 ? t : t.slice(0, 197) + "\u2026";
+            }
+            function renderScrapeSummary(items) {
+                const el = document.getElementById("scrapeTags");
+                if (!items || !items.length) {
+                    el.innerHTML =
+                        '<span class="trace-pill">No scrape attempts yet</span>';
+                    return;
+                }
+                el.innerHTML = items
+                    .map(function (item) {
+                        const host = hostnameFromUrl(item.url || "unknown");
+                        const status = item.status || "unknown";
+                        const detail = item.error
+                            ? compactTraceDetail(item.error)
+                            : item.text_length
+                              ? item.text_length + " chars"
+                              : "";
+                        const dl = detail
+                            ? '<p class="trace-scrape-detail">' +
+                              safeHtml(detail) +
+                              "</p>"
+                            : "";
+                        return (
+                            '<div class="trace-scrape-row"><div class="trace-scrape-host">' +
+                            safeHtml(host) +
+                            '</div><div class="trace-scrape-meta"><span class="trace-pill ' +
+                            safeHtml(status) +
+                            '">' +
+                            safeHtml(status) +
+                            "</span></div>" +
+                            dl +
+                            "</div>"
+                        );
+                    })
+                    .join("");
+            }
+            function parseSectionsFromRaw(text) {
+                const lines = normalizeText(text).split("\n");
+                const sections = [];
+                let current = null;
+                for (const rawLine of lines) {
+                    const line = rawLine.trim();
+                    if (!line) continue;
+                    const m = line.match(/^\[?([^\]]+?)\]?\s*:\s*(.*)$/);
+                    if (m && (m[1].includes(".") || m[1].includes("SOURCE"))) {
+                        if (current) sections.push(current);
+                        current = { site: m[1].trim(), summary: "", items: [] };
+                        const d = m[2].trim();
+                        if (d.startsWith("-"))
+                            current.items.push(d.replace(/^-\s*/, ""));
+                        else current.summary = d;
+                        continue;
+                    }
+                    if (!current) continue;
+                    if (line.startsWith("-"))
+                        current.items.push(line.replace(/^-\s*/, ""));
+                    else if (current.summary) current.summary += " " + line;
+                    else current.summary = line;
+                }
+                if (current) sections.push(current);
+                return sections;
+            }
+            function cleanSiteLabel(v) {
+                return normalizeText(v || "")
+                    .replace(/^\*+|\*+$/g, "")
+                    .replace(/^\[|\]$/g, "")
+                    .trim();
+            }
+            function findSourceUrl(siteLabel, sites, sourceByHost) {
+                const cl = cleanSiteLabel(siteLabel)
+                    .toLowerCase()
+                    .replace(/^www\./, "");
+                if (sourceByHost && typeof sourceByHost === "object") {
+                    for (const key of [cl, "www." + cl]) {
+                        if (sourceByHost[key]) return sourceByHost[key];
+                    }
+                    for (const [host, url] of Object.entries(sourceByHost)) {
+                        const h = String(host)
+                            .toLowerCase()
+                            .replace(/^www\./, "");
+                        if (h && (h === cl || h.includes(cl) || cl.includes(h)))
+                            return url;
                     }
                 }
-
-                target.items.push(...items);
+                return (sites || []).find(
+                    (u) =>
+                        hostnameFromUrl(u)
+                            .toLowerCase()
+                            .replace(/^www\./, "") === cl,
+                );
             }
-
-            return Array.from(grouped.values()).map(section => ({
-                ...section,
-                items: Array.from(new Set(section.items))
-            }));
-        }
-
-        function compressSummary(summary) {
-            const clean = normalizeText(summary || '').replace(/\s+/g, ' ').trim();
-            if (!clean) return '';
-            if (clean.length <= 180) return clean;
-            return `${clean.slice(0, 177).trim()}...`;
-        }
-
-        function renderResults(data) {
-            const sections = (data.result_sections && data.result_sections.length)
-                ? data.result_sections
-                : parseSectionsFromRaw(data.extracted || '');
-            const visibleSections = mergeSectionsBySite(sections).filter(section => {
-                const summary = normalizeText(section.summary || '').trim();
-                const items = (section.items || []).map(item => normalizeText(item).trim()).filter(Boolean);
-                const cleanSummary = summary.replace(/^[\-*•.\s]+/, '').trim().toLowerCase();
-                const allowedItems = items.filter(item => {
-                    const cleaned = item.replace(/^[\-*•.\s]+/, '').trim().toLowerCase();
-                    return cleaned && !['no data found', 'no relevant data found', 'no prices mentioned', 'no specific price mentioned'].includes(cleaned);
-                });
-                section.items = allowedItems;
-                if (['no data found', 'no relevant data found', 'no prices mentioned', 'no specific price mentioned'].includes(cleanSummary)) return false;
-                if (!summary && section.items.length === 0) return false;
-                return !!summary || section.items.length > 0;
-            });
-            const grid = document.getElementById('sourceGrid');
-
-            if (!visibleSections.length) {
-                grid.innerHTML = '<article class="source-card"><div class="source-top"><div class="source-site">No structured sections</div><div class="source-badge">Model output</div></div><p class="source-summary">The extractor returned text, but it could not be split into clean source cards.</p></article>';
-                return;
-            }
-
-            grid.innerHTML = visibleSections.map(section => {
-                const items = (section.items || []).filter(Boolean).slice(0, 3);
-                const badge = items.length ? `${items.length} extracted` : 'single summary';
-                const siteLabel = cleanSiteLabel(section.site);
-                const siteUrl = findSourceUrl(siteLabel, data.sites_scraped || [], data.source_by_host || null);
-                const title = siteUrl
-                    ? `<a class="source-link" href="${safeHtml(siteUrl)}" target="_blank" rel="noopener noreferrer">${safeHtml(siteLabel)}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg></a>`
-                    : safeHtml(siteLabel);
-                const summaryText = items.length ? '' : compressSummary(section.summary);
-                const summary = summaryText ? `<p class="source-summary">${safeHtml(summaryText)}</p>` : '';
-                const list = items.length
-                    ? `<ul class="source-list">${items.map(item => `<li>${safeHtml(normalizeText(item))}</li>`).join('')}</ul>`
-                    : '';
-                return `
-                    <article class="source-card">
-                        <div class="source-top">
-                            <div class="source-site">${title}</div>
-                            <div class="source-badge">${safeHtml(badge)}</div>
-                        </div>
-                        ${summary}
-                        ${list}
-                    </article>
-                `;
-            }).join('');
-        }
-
-        function renderTrace(debug) {
-            renderQueryTags(debug?.queries || []);
-            renderTags('primaryTags', debug?.primary || []);
-            renderTags('fallbackTags', debug?.fallback || []);
-            renderScrapeSummary(debug?.scrape_summary || []);
-        }
-
-        function toggleRaw() {
-            rawVisible = !rawVisible;
-            document.getElementById('rawBox').classList.toggle('hidden', !rawVisible);
-            document.getElementById('toggleRawBtn').textContent = rawVisible ? 'Hide raw output' : 'Show raw output';
-        }
-
-        function exportCSV() {
-            const sections = (lastResultSections && lastResultSections.length)
-                ? lastResultSections
-                : parseSectionsFromRaw(lastExtracted);
-            const rows = [['site', 'summary_or_item']];
-            for (const section of sections) {
-                if (section.summary) rows.push([section.site, section.summary]);
-                for (const item of section.items || []) rows.push([section.site, item]);
-            }
-            const csv = rows.map(row => row.map(value => `"${String(normalizeText(value)).replace(/"/g, '""')}"`).join(',')).join('\n');
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = 'signal-desk-results.csv';
-            link.click();
-        }
-
-        async function ask() {
-            const query = document.getElementById('query').value.trim();
-            if (!query) {
-                alert('Type a research request first.');
-                return;
-            }
-
-            setBusy(true);
-            document.getElementById('pipeline').style.display = 'grid';
-            document.getElementById('emptyState').classList.add('hidden');
-            document.getElementById('resultsSection').classList.remove('hidden');
-            document.getElementById('sourceGrid').innerHTML = '';
-            document.getElementById('rawBox').classList.add('hidden');
-            rawVisible = false;
-            document.getElementById('toggleRawBtn').textContent = 'Show raw output';
-            document.getElementById('traceStatus').textContent = 'Running';
-
-            setStep(1, 'Understanding the brief', 'Generating query strategy and category match.', 'active');
-            setStep(2, 'Selecting sources', 'Building the ranked primary and fallback queues.', '');
-            setStep(3, 'Extracting evidence', 'Scraping strong pages and discarding weak ones.', '');
-            setStep(4, 'Packaging results', 'Formatting the answer into cards.', '');
-
-            try {
-                const response = await fetch('/agent', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ request: query })
-                });
-                const data = await response.json();
-
-                setStep(1, 'Understanding the brief', 'Keyword and category locked in.', 'done');
-                setStep(2, 'Selecting sources', 'Primary and fallback source queues prepared.', 'done');
-                setStep(3, 'Extracting evidence', 'Evidence gathered and filtered.', data.status === 'success' ? 'done' : 'active');
-
-                document.getElementById('resultsHeadline').textContent = normalizeText(query);
-                document.getElementById('resultsSubline').textContent = data.status === 'success'
-                    ? 'Multi-source answer generated from ranked sites.'
-                    : 'The request completed with no usable extraction.';
-                document.getElementById('categoryValue').textContent = data.category || data.debug?.category || '-';
-                document.getElementById('keywordValue').textContent = normalizeText(data.keyword || data.debug?.keyword || '-');
-                const visibleSourceCount = data.visible_source_count ?? ((data.result_sections || []).length) ?? ((data.sites_scraped || []).length);
-                document.getElementById('successCount').textContent = String(visibleSourceCount);
-
-                renderTrace(data.debug || {});
-
-                if (data.status === 'success') {
-                    lastExtracted = normalizeText(data.extracted || '');
-                    lastResultSections = Array.isArray(data.result_sections) ? data.result_sections : [];
-                    document.getElementById('rawBox').textContent = lastExtracted;
-                    renderResults(data);
-                    setStep(4, 'Packaging results', 'Source cards are ready to review.', 'done');
-                    document.getElementById('traceStatus').textContent = 'Complete';
-                } else {
-                    lastExtracted = normalizeText(data.message || 'No result');
-                    document.getElementById('rawBox').textContent = lastExtracted;
-                    document.getElementById('sourceGrid').innerHTML = `
-                        <article class="source-card">
-                            <div class="source-top">
-                                <div class="source-site">No usable extraction</div>
-                                <div class="source-badge">Try another query</div>
-                            </div>
-                            <p class="source-summary">${safeHtml(normalizeText(data.message || 'The available sources did not return enough usable data.'))}</p>
-                        </article>
-                    `;
-                    setStep(4, 'Packaging results', 'No final answer could be formed from the available pages.', '');
-                    document.getElementById('traceStatus').textContent = 'Needs review';
+            function mergeSectionsBySite(sections) {
+                const grouped = new Map();
+                for (const section of sections) {
+                    const site = cleanSiteLabel(
+                        section.site || "Unknown source",
+                    );
+                    const summary = normalizeText(section.summary || "").trim();
+                    const items = (section.items || [])
+                        .map((i) => normalizeText(i).trim())
+                        .filter(Boolean);
+                    if (!grouped.has(site))
+                        grouped.set(site, { site, summary: "", items: [] });
+                    const target = grouped.get(site);
+                    if (summary) {
+                        const parts = summary
+                            .split(/\s*\*\s*/g)
+                            .map((p) => p.trim())
+                            .filter(Boolean);
+                        if (parts.length > 1) target.items.push(...parts);
+                        else if (!target.summary) target.summary = summary;
+                        else if (target.summary !== summary)
+                            target.items.push(summary);
+                    }
+                    target.items.push(...items);
                 }
-
-                scrollToResults();
-            } catch (error) {
-                document.getElementById('resultsSection').classList.remove('hidden');
-                document.getElementById('sourceGrid').innerHTML = `
-                    <article class="source-card">
-                        <div class="source-top">
-                            <div class="source-site">Request failed</div>
-                            <div class="source-badge">Network error</div>
-                        </div>
-                        <p class="source-summary">${safeHtml(error.message)}</p>
-                    </article>
-                `;
-                document.getElementById('traceStatus').textContent = 'Request failed';
-                setStep(3, 'Extracting evidence', 'The request failed before a final answer was produced.', '');
-            } finally {
-                setBusy(false);
+                return Array.from(grouped.values()).map((s) =>
+                    Object.assign({}, s, {
+                        items: Array.from(new Set(s.items)),
+                    }),
+                );
             }
-        }
-    </script>
-</body>
+            function compressSummary(s) {
+                const c = normalizeText(s || "")
+                    .replace(/\s+/g, " ")
+                    .trim();
+                return c.length <= 180 ? c : c.slice(0, 177) + "...";
+            }
+            function renderResults(data) {
+                const sections =
+                    data.result_sections && data.result_sections.length
+                        ? data.result_sections
+                        : parseSectionsFromRaw(data.extracted || "");
+                const nod = [
+                    "no data found",
+                    "no relevant data found",
+                    "no prices mentioned",
+                    "no specific price mentioned",
+                ];
+                const vis = mergeSectionsBySite(sections).filter(function (s) {
+                    const sum = normalizeText(s.summary || "").trim();
+                    const items = (s.items || [])
+                        .map((i) => normalizeText(i).trim())
+                        .filter(Boolean);
+                    s.items = items.filter((i) => {
+                        const c = i
+                            .replace(/^[\-*\u2022.\s]+/, "")
+                            .trim()
+                            .toLowerCase();
+                        return c && !nod.includes(c);
+                    });
+                    const cs = sum
+                        .replace(/^[\-*\u2022.\s]+/, "")
+                        .trim()
+                        .toLowerCase();
+                    if (nod.includes(cs)) return false;
+                    return !!sum || s.items.length > 0;
+                });
+                const grid = document.getElementById("sourceGrid");
+                if (!vis.length) {
+                    grid.innerHTML =
+                        '<article class="source-card"><div class="source-top"><div class="source-site">No structured sections</div><div class="source-badge">Model output</div></div><p class="source-summary">The extractor returned text but could not be split into clean source cards.</p></article>';
+                    return;
+                }
+                grid.innerHTML = vis
+                    .map(function (section) {
+                        const items = (section.items || [])
+                            .filter(Boolean)
+                            .slice(0, 3);
+                        const badge = items.length
+                            ? items.length + " extracted"
+                            : "single summary";
+                        const siteLabel = cleanSiteLabel(section.site);
+                        const siteUrl = findSourceUrl(
+                            siteLabel,
+                            data.sites_scraped || [],
+                            data.source_by_host || null,
+                        );
+                        const title = siteUrl
+                            ? '<a class="source-link" href="' +
+                              safeHtml(siteUrl) +
+                              '" target="_blank" rel="noopener noreferrer">' +
+                              safeHtml(siteLabel) +
+                              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg></a>'
+                            : safeHtml(siteLabel);
+                        const st = items.length
+                            ? ""
+                            : compressSummary(section.summary);
+                        const summary = st
+                            ? '<p class="source-summary">' +
+                              safeHtml(st) +
+                              "</p>"
+                            : "";
+                        const list = items.length
+                            ? '<ul class="source-list">' +
+                              items
+                                  .map(
+                                      (i) =>
+                                          "<li>" +
+                                          safeHtml(normalizeText(i)) +
+                                          "</li>",
+                                  )
+                                  .join("") +
+                              "</ul>"
+                            : "";
+                        return (
+                            '<article class="source-card"><div class="source-top"><div class="source-site">' +
+                            title +
+                            '</div><div class="source-badge">' +
+                            safeHtml(badge) +
+                            "</div></div>" +
+                            summary +
+                            list +
+                            "</article>"
+                        );
+                    })
+                    .join("");
+            }
+            function renderTrace(debug) {
+                renderQueryTags(debug && debug.queries ? debug.queries : []);
+                renderTags(
+                    "primaryTags",
+                    debug && debug.primary ? debug.primary : [],
+                );
+                renderTags(
+                    "fallbackTags",
+                    debug && debug.fallback ? debug.fallback : [],
+                );
+                renderScrapeSummary(
+                    debug && debug.scrape_summary ? debug.scrape_summary : [],
+                );
+            }
+            function toggleRaw() {
+                rawVisible = !rawVisible;
+                document
+                    .getElementById("rawBox")
+                    .classList.toggle("hidden", !rawVisible);
+                document.getElementById("toggleRawBtn").textContent = rawVisible
+                    ? "Hide raw output"
+                    : "Show raw output";
+            }
+            function exportCSV() {
+                const sections =
+                    lastResultSections && lastResultSections.length
+                        ? lastResultSections
+                        : parseSectionsFromRaw(lastExtracted);
+                const rows = [["site", "summary_or_item"]];
+                for (const s of sections) {
+                    if (s.summary) rows.push([s.site, s.summary]);
+                    for (const i of s.items || []) rows.push([s.site, i]);
+                }
+                const csv = rows
+                    .map((r) =>
+                        r
+                            .map(
+                                (v) =>
+                                    '"' +
+                                    String(normalizeText(v)).replace(
+                                        /"/g,
+                                        '""',
+                                    ) +
+                                    '"',
+                            )
+                            .join(","),
+                    )
+                    .join("\n");
+                const blob = new Blob([csv], {
+                    type: "text/csv;charset=utf-8",
+                });
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.download = "scrapex-results.csv";
+                link.click();
+            }
+            async function ask() {
+                const query = document.getElementById("query").value.trim();
+                if (!query) {
+                    alert("Type a research request first.");
+                    return;
+                }
+                setBusy(true);
+                document.getElementById("pipeline").style.display = "grid";
+                document.getElementById("emptyState").classList.add("hidden");
+                document
+                    .getElementById("resultsSection")
+                    .classList.remove("hidden");
+                document.getElementById("sourceGrid").innerHTML = "";
+                document.getElementById("rawBox").classList.add("hidden");
+                rawVisible = false;
+                document.getElementById("toggleRawBtn").textContent =
+                    "Show raw output";
+                document.getElementById("traceStatus").textContent = "Running";
+                setStep(
+                    1,
+                    "Understanding the brief",
+                    "Generating query strategy and category match.",
+                    "active",
+                );
+                setStep(
+                    2,
+                    "Selecting sources",
+                    "Building the ranked primary and fallback queues.",
+                    "",
+                );
+                setStep(
+                    3,
+                    "Extracting evidence",
+                    "Scraping strong pages and discarding weak ones.",
+                    "",
+                );
+                setStep(
+                    4,
+                    "Packaging results",
+                    "Formatting the answer into cards.",
+                    "",
+                );
+                try {
+                    const response = await fetch("/agent", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ request: query }),
+                    });
+                    const data = await response.json();
+                    setStep(
+                        1,
+                        "Understanding the brief",
+                        "Keyword and category locked in.",
+                        "done",
+                    );
+                    setStep(
+                        2,
+                        "Selecting sources",
+                        "Primary and fallback source queues prepared.",
+                        "done",
+                    );
+                    setStep(
+                        3,
+                        "Extracting evidence",
+                        "Evidence gathered and filtered.",
+                        data.status === "success" ? "done" : "active",
+                    );
+                    document.getElementById("resultsHeadline").textContent =
+                        normalizeText(query);
+                    document.getElementById("resultsSubline").textContent =
+                        data.status === "success"
+                            ? "Multi-source answer generated from ranked sites."
+                            : "The request completed with no usable extraction.";
+                    document.getElementById("categoryValue").textContent =
+                        data.category ||
+                        (data.debug && data.debug.category) ||
+                        "-";
+                    document.getElementById("keywordValue").textContent =
+                        normalizeText(
+                            data.keyword ||
+                                (data.debug && data.debug.keyword) ||
+                                "-",
+                        );
+                    const count =
+                        data.visible_source_count ??
+                        (data.result_sections || []).length ??
+                        (data.sites_scraped || []).length;
+                    document.getElementById("successCount").textContent =
+                        String(count);
+                    renderTrace(data.debug || {});
+                    if (data.status === "success") {
+                        lastExtracted = normalizeText(data.extracted || "");
+                        lastResultSections = Array.isArray(data.result_sections)
+                            ? data.result_sections
+                            : [];
+                        document.getElementById("rawBox").textContent =
+                            lastExtracted;
+                        renderResults(data);
+                        setStep(
+                            4,
+                            "Packaging results",
+                            "Source cards are ready to review.",
+                            "done",
+                        );
+                        document.getElementById("traceStatus").textContent =
+                            "Complete";
+                    } else {
+                        lastExtracted = normalizeText(
+                            data.message || "No result",
+                        );
+                        document.getElementById("rawBox").textContent =
+                            lastExtracted;
+                        document.getElementById("sourceGrid").innerHTML =
+                            '<article class="source-card"><div class="source-top"><div class="source-site">No usable extraction</div><div class="source-badge">Try another query</div></div><p class="source-summary">' +
+                            safeHtml(
+                                normalizeText(
+                                    data.message ||
+                                        "The available sources did not return enough usable data.",
+                                ),
+                            ) +
+                            "</p></article>";
+                        setStep(
+                            4,
+                            "Packaging results",
+                            "No final answer could be formed from the available pages.",
+                            "",
+                        );
+                        document.getElementById("traceStatus").textContent =
+                            "Needs review";
+                    }
+                    scrollToResults();
+                } catch (error) {
+                    document.getElementById("sourceGrid").innerHTML =
+                        '<article class="source-card"><div class="source-top"><div class="source-site">Request failed</div><div class="source-badge">Network error</div></div><p class="source-summary">' +
+                        safeHtml(error.message) +
+                        "</p></article>";
+                    document.getElementById("traceStatus").textContent =
+                        "Request failed";
+                    setStep(
+                        3,
+                        "Extracting evidence",
+                        "The request failed before a final answer was produced.",
+                        "",
+                    );
+                } finally {
+                    setBusy(false);
+                }
+            }
+        </script>
+    </body>
 </html>
-
-
