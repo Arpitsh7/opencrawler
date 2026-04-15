@@ -1,995 +1,1201 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Signal Desk</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --paper: #000000;
-            --paper-strong: #090909;
-            --ink: #ffffff;
-            --ink-soft: #d9d9d9;
-            --muted: #a6a6a6;
-            --panel: rgba(9, 9, 9, 0.92);
-            --panel-strong: #090909;
-            --accent: #f472b6;
-            --accent-soft: rgba(244, 114, 182, 0.16);
-            --secondary: #ffffff;
-            --success: #039855;
-            --warning: #b54708;
-            --danger: #b42318;
-            --shadow: 0 24px 70px rgba(0, 0, 0, 0.4);
-            --radius-xl: 32px;
-            --radius-lg: 24px;
-            --radius-md: 18px;
-        }
-
-        * { box-sizing: border-box; }
-        html { scroll-behavior: smooth; }
-
-        body {
-            margin: 0;
-            font-family: 'Manrope', sans-serif;
-            color: var(--ink);
-            background:
-                radial-gradient(circle at 10% 12%, rgba(244, 114, 182, 0.10), transparent 26%),
-                radial-gradient(circle at 84% 16%, rgba(244, 114, 182, 0.07), transparent 22%),
-                radial-gradient(circle at 60% 72%, rgba(244, 114, 182, 0.08), transparent 28%),
-                #000;
-            min-height: 100vh;
-        }
-
-        body::before {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background-image:
-                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-            background-size: 52px 52px;
-            mask-image: linear-gradient(180deg, rgba(0,0,0,0.5), transparent 92%);
-            pointer-events: none;
-            z-index: 0;
-        }
-
-        .page {
-            position: relative;
-            z-index: 1;
-            width: min(1240px, calc(100% - 32px));
-            margin: 0 auto;
-            padding: 28px 0 64px;
-        }
-
-        .nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 0 20px;
-            gap: 18px;
-        }
-
-        .brand {
-            display: inline-flex;
-            align-items: center;
-            gap: 12px;
-            text-decoration: none;
-            color: inherit;
-        }
-
-        .brand-mark {
-            width: 48px;
-            height: 48px;
-            border-radius: 16px;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(244, 114, 182, 0.22);
-            color: #ffd2ea;
-            display: grid;
-            place-items: center;
-            box-shadow: 0 12px 26px rgba(0, 0, 0, 0.35);
-        }
-
-        .brand-copy strong {
-            display: block;
-            font-size: 15px;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-        }
-
-        .brand-copy span {
-            display: block;
-            color: var(--muted);
-            font-size: 13px;
-        }
-
-        .nav-pill {
-            border: 1px solid rgba(255, 255, 255, 0.16);
-            border-radius: 999px;
-            background: rgba(255,255,255,0.08);
-            padding: 10px 14px;
-            font-size: 12px;
-            color: var(--ink-soft);
-            backdrop-filter: blur(18px);
-            text-align: center;
-        }
-
-        .nav-back {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 12px;
-            color: var(--muted);
-            text-decoration: none;
-            border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 999px;
-            padding: 8px 14px;
-            background: rgba(255,255,255,0.06);
-            transition: color 0.2s, background 0.2s;
-        }
-
-        .nav-back:hover {
-            color: var(--ink);
-            background: rgba(255,255,255,0.12);
-        }
-
-        .hero {
-            display: grid;
-            grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
-            gap: 24px;
-            align-items: stretch;
-        }
-
-        .hero-card,
-        .panel,
-        .results-shell,
-        .trace-shell,
-        .empty-shell {
-            background: var(--panel);
-            border: 1px solid rgba(255, 77, 184, 0.2);
-            box-shadow: var(--shadow);
-            backdrop-filter: blur(18px);
-        }
-
-        .hero-card {
-            border-radius: var(--radius-xl);
-            padding: 40px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .hero-card::after {
-            content: '';
-            position: absolute;
-            right: -80px;
-            bottom: -90px;
-            width: 260px;
-            height: 260px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(244, 114, 182, 0.12), transparent 70%);
-        }
-
-        .eyebrow {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 12px;
-            border-radius: 999px;
-            background: rgba(255,255,255,0.55);
-            border: 1px solid rgba(17, 19, 21, 0.08);
-            color: var(--ink-soft);
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.12em;
-        }
-
-        h1 {
-            margin: 20px 0 14px;
-            font-family: 'Sora', sans-serif;
-            font-size: clamp(2.85rem, 4.4vw, 4.6rem);
-            line-height: 0.98;
-            font-weight: 700;
-            letter-spacing: -0.06em;
-            max-width: 11ch;
-        }
-
-        .hero-copy {
-            max-width: 60ch;
-            color: var(--ink-soft);
-            font-size: 18px;
-            line-height: 1.8;
-            margin-bottom: 30px;
-        }
-
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 14px;
-        }
-
-        .stat {
-            border-radius: 20px;
-            background: rgba(255,255,255,0.10);
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            padding: 18px;
-        }
-
-        .stat strong {
-            display: block;
-            font-size: 24px;
-            margin-bottom: 6px;
-        }
-
-        .stat span {
-            color: var(--muted);
-            font-size: 13px;
-            line-height: 1.55;
-        }
-
-        .panel {
-            border-radius: var(--radius-xl);
-            padding: 22px;
-            display: flex;
-            flex-direction: column;
-            gap: 18px;
-        }
-
-        .panel-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .panel-title {
-            font-size: 13px;
-            text-transform: uppercase;
-            letter-spacing: 0.12em;
-            color: var(--muted);
-        }
-
-        .panel-badge {
-            padding: 8px 12px;
-            border-radius: 999px;
-            background: var(--accent-soft);
-            color: #ffd2ea;
-            font-size: 12px;
-            font-weight: 700;
-        }
-
-        .query-shell {
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-        }
-
-        .query-box {
-            min-height: 168px;
-            resize: vertical;
-            width: 100%;
-            border: 1px solid rgba(255, 255, 255, 0.16);
-            border-radius: 24px;
-            padding: 22px 20px;
-            font: inherit;
-            font-size: 16px;
-            line-height: 1.7;
-            color: var(--ink);
-            background: rgba(255,255,255,0.06);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
-            outline: none;
-            transition: border-color 0.2s, box-shadow 0.2s;
-        }
-
-        .query-box:focus {
-            border-color: rgba(255, 77, 184, 0.65);
-            box-shadow: 0 0 0 5px rgba(255, 77, 184, 0.18);
-        }
-
-        .actions {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-
-        .primary-btn,
-        .secondary-btn {
-            border: 0;
-            border-radius: 18px;
-            padding: 16px 20px;
-            font: inherit;
-            font-size: 14px;
-            font-weight: 800;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
-        }
-
-        .primary-btn {
-            background: linear-gradient(135deg, #f472b6, #f9a8d4);
-            color: white;
-            box-shadow: 0 22px 34px rgba(244, 114, 182, 0.24);
-            flex: 1;
-        }
-
-        .secondary-btn {
-            background: rgba(255,255,255,0.08);
-            color: var(--ink-soft);
-            border: 1px solid rgba(255, 255, 255, 0.16);
-        }
-
-        .primary-btn:hover,
-        .secondary-btn:hover {
-            transform: translateY(-1px);
-        }
-
-        .primary-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .suggestions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .suggestion-chip {
-            padding: 11px 14px;
-            border-radius: 999px;
-            border: 1px solid rgba(255, 255, 255, 0.16);
-            background: rgba(255,255,255,0.06);
-            color: var(--ink-soft);
-            font-size: 13px;
-            cursor: pointer;
-            transition: transform 0.2s, border-color 0.2s, background 0.2s;
-        }
-
-        .suggestion-chip:hover {
-            transform: translateY(-1px);
-            border-color: rgba(244, 114, 182, 0.42);
-            background: rgba(255,255,255,0.12);
-        }
-
-        .pipeline {
-            display: none;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 14px;
-            margin-top: 24px;
-        }
-
-        .step {
-            padding: 16px;
-            border-radius: 20px;
-            background: rgba(255,255,255,0.55);
-            border: 1px solid rgba(17, 19, 21, 0.08);
-            min-height: 108px;
-        }
-
-        .step-index {
-            width: 34px;
-            height: 34px;
-            border-radius: 12px;
-            display: grid;
-            place-items: center;
-            background: rgba(17, 19, 21, 0.06);
-            color: var(--ink-soft);
-            font-size: 12px;
-            font-weight: 800;
-            margin-bottom: 18px;
-        }
-
-        .step.active {
-            background: rgba(37, 99, 235, 0.08);
-            border-color: rgba(37, 99, 235, 0.16);
-        }
-
-        .step.done {
-            background: rgba(25, 135, 84, 0.1);
-            border-color: rgba(25, 135, 84, 0.16);
-        }
-
-        .step.active .step-index {
-            background: var(--accent);
-            color: white;
-            box-shadow: 0 12px 22px rgba(37, 99, 235, 0.24);
-        }
-
-        .step.done .step-index {
-            background: var(--success);
-            color: white;
-        }
-
-        .step h3 {
-            margin: 0 0 8px;
-            font-size: 16px;
-        }
-
-        .step p {
-            margin: 0;
-            font-size: 13px;
-            color: var(--muted);
-            line-height: 1.6;
-        }
-
-        .results-grid {
-            display: grid;
-            grid-template-columns: minmax(0, 1.2fr) minmax(280px, min(36vw, 420px));
-            gap: 24px;
-            margin-top: 26px;
-            align-items: start;
-            min-width: 0;
-        }
-
-        .results-shell,
-        .trace-shell,
-        .empty-shell {
-            border-radius: var(--radius-xl);
-            padding: 28px;
-            min-width: 0;
-        }
-
-        .results-shell,
-        .trace-shell {
-            overflow-x: hidden;
-        }
-
-        .shell-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 16px;
-            margin-bottom: 22px;
-        }
-
-        .shell-header h2 {
-            margin: 0;
-            font-size: 30px;
-            line-height: 1.1;
-            letter-spacing: -0.04em;
-        }
-
-        .shell-header p {
-            margin: 8px 0 0;
-            color: var(--muted);
-            font-size: 14px;
-            line-height: 1.6;
-        }
-
-        .header-actions {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            justify-content: flex-end;
-        }
-
-        .ghost-pill {
-            border-radius: 999px;
-            padding: 10px 12px;
-            background: rgba(255,255,255,0.6);
-            border: 1px solid rgba(17, 19, 21, 0.08);
-            color: var(--ink-soft);
-            font-size: 12px;
-            font-weight: 700;
-        }
-
-        .summary-banner {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 12px;
-            margin-bottom: 18px;
-        }
-
-        .summary-tile {
-            padding: 16px 18px;
-            border-radius: 20px;
-            background: rgba(255,255,255,0.06);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-        }
-
-        .summary-tile label {
-            display: block;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--muted);
-            margin-bottom: 8px;
-        }
-
-        .summary-tile strong {
-            display: block;
-            font-size: 18px;
-            line-height: 1.35;
-        }
-
-        .source-grid {
-            display: grid;
-            gap: 14px;
-        }
-
-        .source-card {
-            border-radius: 26px;
-            padding: 24px;
-            background: var(--panel-strong);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            box-shadow: 0 18px 34px rgba(0, 0, 0, 0.4);
-        }
-
-        .source-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 16px;
-        }
-
-        .source-site {
-            font-size: 18px;
-            font-weight: 800;
-            letter-spacing: -0.03em;
-            font-family: 'Sora', sans-serif;
-        }
-
-        .source-link {
-            color: var(--secondary);
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .source-link:hover {
-            color: var(--accent);
-        }
-
-        .source-link svg {
-            width: 16px;
-            height: 16px;
-            opacity: 0.6;
-        }
-
-        .source-badge {
-            border-radius: 999px;
-            padding: 8px 12px;
-            background: var(--accent-soft);
-            color: #ffd2ea;
-            font-size: 12px;
-            font-weight: 800;
-        }
-
-        .source-summary {
-            color: var(--ink-soft);
-            line-height: 1.8;
-            font-size: 15px;
-            margin: 0 0 14px;
-        }
-
-        .source-list {
-            display: grid;
-            gap: 10px;
-            margin: 0;
-            padding: 0;
-            list-style: none;
-        }
-
-        .source-list li {
-            padding: 14px 16px;
-            border-radius: 18px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            line-height: 1.7;
-            font-size: 14px;
-            color: var(--ink-soft);
-        }
-
-        .trace-stack {
-            display: grid;
-            gap: 14px;
-        }
-
-        .trace-card {
-            border-radius: 22px;
-            padding: 18px;
-            background: rgba(255,255,255,0.62);
-            border: 1px solid rgba(17, 19, 21, 0.08);
-        }
-
-        .trace-card h3 {
-            margin: 0 0 12px;
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--muted);
-        }
-
-        .tag-row,
-        .trace-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            min-width: 0;
-            max-width: 100%;
-        }
-
-        .trace-list--scrape {
-            flex-direction: column;
-            flex-wrap: nowrap;
-            align-items: stretch;
-        }
-
-        .trace-scrape-row {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr);
-            gap: 6px;
-            padding: 10px 12px;
-            border-radius: 14px;
-            background: rgba(255, 255, 255, 0.55);
-            border: 1px solid rgba(17, 19, 21, 0.07);
-            max-width: 100%;
-            overflow: hidden;
-        }
-
-        .trace-scrape-host {
-            font-size: 12px;
-            font-weight: 800;
-            color: var(--ink);
-            word-break: break-word;
-            overflow-wrap: anywhere;
-        }
-
-        .trace-scrape-meta {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 8px;
-            min-width: 0;
-        }
-
-        .trace-scrape-detail {
-            flex: 1 1 100%;
-            min-width: 0;
-            margin: 0;
-            font-size: 11px;
-            font-weight: 600;
-            color: var(--muted);
-            line-height: 1.45;
-            word-break: break-word;
-            overflow-wrap: anywhere;
-            white-space: normal;
-        }
-
-        .tag,
-        .trace-pill {
-            border-radius: 999px;
-            padding: 9px 12px;
-            font-size: 12px;
-            font-weight: 700;
-            background: rgba(17, 19, 21, 0.05);
-            color: var(--ink-soft);
-            border: 1px solid rgba(17, 19, 21, 0.06);
-            max-width: 100%;
-            overflow-wrap: anywhere;
-            word-break: break-word;
-        }
-
-        .trace-pill.ok      { background: rgba(25, 135, 84, 0.1);   color: var(--success); }
-        .trace-pill.blocked { background: rgba(184, 106, 0, 0.12);  color: var(--warning); }
-        .trace-pill.error,
-        .trace-pill.empty   { background: rgba(180, 35, 24, 0.1);   color: var(--danger);  }
-
-        .raw-box {
-            white-space: pre-wrap;
-            background: #15171a;
-            color: #f5f7fa;
-            padding: 18px;
-            border-radius: 18px;
-            font-size: 13px;
-            line-height: 1.7;
-            max-height: 320px;
-            overflow: auto;
-        }
-
-        .empty-shell {
-            margin-top: 26px;
-            text-align: center;
-            padding: 42px 28px;
-        }
-
-        .empty-shell strong {
-            display: block;
-            font-size: 22px;
-            margin-bottom: 10px;
-        }
-
-        .empty-shell p {
-            margin: 0;
-            color: var(--muted);
-            line-height: 1.75;
-        }
-
-        .hidden { display: none !important; }
-
-        @media (max-width: 1040px) {
-            .hero,
-            .results-grid {
-                grid-template-columns: 1fr;
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Signal Desk</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            :root {
+                --paper: #000000;
+                --paper-strong: #090909;
+                --ink: #ffffff;
+                --ink-soft: #d9d9d9;
+                --muted: #a6a6a6;
+                --panel: rgba(9, 9, 9, 0.92);
+                --panel-strong: #090909;
+                --accent: #f472b6;
+                --accent-soft: rgba(244, 114, 182, 0.16);
+                --secondary: #ffffff;
+                --success: #039855;
+                --warning: #b54708;
+                --danger: #b42318;
+                --shadow: 0 24px 70px rgba(0, 0, 0, 0.4);
+                --radius-xl: 32px;
+                --radius-lg: 24px;
+                --radius-md: 18px;
             }
-        }
 
-        @media (max-width: 760px) {
-            .page { width: min(100% - 20px, 100%); }
+            * {
+                box-sizing: border-box;
+            }
+            html {
+                scroll-behavior: smooth;
+            }
+
+            body {
+                margin: 0;
+                font-family: "Manrope", sans-serif;
+                color: var(--ink);
+                background:
+                    radial-gradient(
+                        circle at 10% 12%,
+                        rgba(244, 114, 182, 0.1),
+                        transparent 26%
+                    ),
+                    radial-gradient(
+                        circle at 84% 16%,
+                        rgba(244, 114, 182, 0.07),
+                        transparent 22%
+                    ),
+                    radial-gradient(
+                        circle at 60% 72%,
+                        rgba(244, 114, 182, 0.08),
+                        transparent 28%
+                    ),
+                    #000;
+                min-height: 100vh;
+            }
+
+            body::before {
+                content: "";
+                position: fixed;
+                inset: 0;
+                background-image:
+                    linear-gradient(
+                        rgba(255, 255, 255, 0.03) 1px,
+                        transparent 1px
+                    ),
+                    linear-gradient(
+                        90deg,
+                        rgba(255, 255, 255, 0.03) 1px,
+                        transparent 1px
+                    );
+                background-size: 52px 52px;
+                mask-image: linear-gradient(
+                    180deg,
+                    rgba(0, 0, 0, 0.5),
+                    transparent 92%
+                );
+                pointer-events: none;
+                z-index: 0;
+            }
+
+            .page {
+                position: relative;
+                z-index: 1;
+                width: min(1240px, calc(100% - 32px));
+                margin: 0 auto;
+                padding: 28px 0 64px;
+            }
+
+            .nav {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 12px 0 20px;
+                gap: 18px;
+            }
+
+            .brand {
+                display: inline-flex;
+                align-items: center;
+                gap: 12px;
+                text-decoration: none;
+                color: inherit;
+            }
+
+            .brand-mark {
+                width: 48px;
+                height: 48px;
+                border-radius: 16px;
+                background: rgba(255, 255, 255, 0.08);
+                border: 1px solid rgba(244, 114, 182, 0.22);
+                color: #ffd2ea;
+                display: grid;
+                place-items: center;
+                box-shadow: 0 12px 26px rgba(0, 0, 0, 0.35);
+            }
+
+            .brand-copy strong {
+                display: block;
+                font-size: 15px;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+            }
+
+            .brand-copy span {
+                display: block;
+                color: var(--muted);
+                font-size: 13px;
+            }
+
+            .nav-pill {
+                border: 1px solid rgba(255, 255, 255, 0.16);
+                border-radius: 999px;
+                background: rgba(255, 255, 255, 0.08);
+                padding: 10px 14px;
+                font-size: 12px;
+                color: var(--ink-soft);
+                backdrop-filter: blur(18px);
+                text-align: center;
+            }
+
+            .nav-back {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 12px;
+                color: var(--muted);
+                text-decoration: none;
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                border-radius: 999px;
+                padding: 8px 14px;
+                background: rgba(255, 255, 255, 0.06);
+                transition:
+                    color 0.2s,
+                    background 0.2s;
+            }
+
+            .nav-back:hover {
+                color: var(--ink);
+                background: rgba(255, 255, 255, 0.12);
+            }
+
+            .hero {
+                display: grid;
+                grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+                gap: 24px;
+                align-items: stretch;
+            }
+
             .hero-card,
             .panel,
             .results-shell,
             .trace-shell,
-            .empty-shell { padding: 20px; border-radius: 24px; }
-            h1 { font-size: 2.9rem; }
-            .stats,
-            .pipeline,
-            .summary-banner { grid-template-columns: 1fr; }
-            .actions { flex-direction: column; }
+            .empty-shell {
+                background: var(--panel);
+                border: 1px solid rgba(255, 77, 184, 0.2);
+                box-shadow: var(--shadow);
+                backdrop-filter: blur(18px);
+            }
+
+            .hero-card {
+                border-radius: var(--radius-xl);
+                padding: 40px;
+                overflow: hidden;
+                position: relative;
+            }
+
+            .hero-card::after {
+                content: "";
+                position: absolute;
+                right: -80px;
+                bottom: -90px;
+                width: 260px;
+                height: 260px;
+                border-radius: 50%;
+                background: radial-gradient(
+                    circle,
+                    rgba(244, 114, 182, 0.12),
+                    transparent 70%
+                );
+            }
+
+            .eyebrow {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 8px 12px;
+                border-radius: 999px;
+                background: rgba(255, 255, 255, 0.55);
+                border: 1px solid rgba(17, 19, 21, 0.08);
+                color: var(--ink-soft);
+                font-size: 12px;
+                text-transform: uppercase;
+                letter-spacing: 0.12em;
+            }
+
+            h1 {
+                margin: 20px 0 14px;
+                font-family: "Sora", sans-serif;
+                font-size: clamp(2.85rem, 4.4vw, 4.6rem);
+                line-height: 0.98;
+                font-weight: 700;
+                letter-spacing: -0.06em;
+                max-width: 11ch;
+            }
+
+            .hero-copy {
+                max-width: 60ch;
+                color: var(--ink-soft);
+                font-size: 18px;
+                line-height: 1.8;
+                margin-bottom: 30px;
+            }
+
+            .stats {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 14px;
+            }
+
+            .stat {
+                border-radius: 20px;
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.18);
+                padding: 18px;
+            }
+
+            .stat strong {
+                display: block;
+                font-size: 24px;
+                margin-bottom: 6px;
+            }
+
+            .stat span {
+                color: var(--muted);
+                font-size: 13px;
+                line-height: 1.55;
+            }
+
+            .panel {
+                border-radius: var(--radius-xl);
+                padding: 22px;
+                display: flex;
+                flex-direction: column;
+                gap: 18px;
+            }
+
+            .panel-top {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
+            }
+
+            .panel-title {
+                font-size: 13px;
+                text-transform: uppercase;
+                letter-spacing: 0.12em;
+                color: var(--muted);
+            }
+
+            .panel-badge {
+                padding: 8px 12px;
+                border-radius: 999px;
+                background: var(--accent-soft);
+                color: #ffd2ea;
+                font-size: 12px;
+                font-weight: 700;
+            }
+
+            .query-shell {
+                display: flex;
+                flex-direction: column;
+                gap: 14px;
+            }
+
+            .query-box {
+                min-height: 168px;
+                resize: vertical;
+                width: 100%;
+                border: 1px solid rgba(255, 255, 255, 0.16);
+                border-radius: 24px;
+                padding: 22px 20px;
+                font: inherit;
+                font-size: 16px;
+                line-height: 1.7;
+                color: var(--ink);
+                background: rgba(255, 255, 255, 0.06);
+                box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+                outline: none;
+                transition:
+                    border-color 0.2s,
+                    box-shadow 0.2s;
+            }
+
+            .query-box:focus {
+                border-color: rgba(255, 77, 184, 0.65);
+                box-shadow: 0 0 0 5px rgba(255, 77, 184, 0.18);
+            }
+
+            .actions {
+                display: flex;
+                gap: 12px;
+                flex-wrap: wrap;
+            }
+
             .primary-btn,
-            .secondary-btn { width: 100%; }
-            .shell-header { flex-direction: column; }
-            .header-actions { justify-content: flex-start; }
-            .nav { flex-direction: column; align-items: flex-start; }
-        }
-    </style>
-</head>
-<body>
-    <div class="page">
-        <div class="nav">
-            <a class="brand" href="#top">
-                <div class="brand-mark">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M4 15l5-5 4 4 7-8"></path>
-                        <path d="M20 8v5h-5"></path>
+            .secondary-btn {
+                border: 0;
+                border-radius: 18px;
+                padding: 16px 20px;
+                font: inherit;
+                font-size: 14px;
+                font-weight: 800;
+                cursor: pointer;
+                transition:
+                    transform 0.2s,
+                    box-shadow 0.2s,
+                    opacity 0.2s;
+            }
+
+            .primary-btn {
+                background: linear-gradient(135deg, #f472b6, #f9a8d4);
+                color: white;
+                box-shadow: 0 22px 34px rgba(244, 114, 182, 0.24);
+                flex: 1;
+            }
+
+            .secondary-btn {
+                background: rgba(255, 255, 255, 0.08);
+                color: var(--ink-soft);
+                border: 1px solid rgba(255, 255, 255, 0.16);
+            }
+
+            .primary-btn:hover,
+            .secondary-btn:hover {
+                transform: translateY(-1px);
+            }
+
+            .primary-btn:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+                transform: none;
+            }
+
+            .suggestions {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .suggestion-chip {
+                padding: 11px 14px;
+                border-radius: 999px;
+                border: 1px solid rgba(255, 255, 255, 0.16);
+                background: rgba(255, 255, 255, 0.06);
+                color: var(--ink-soft);
+                font-size: 13px;
+                cursor: pointer;
+                transition:
+                    transform 0.2s,
+                    border-color 0.2s,
+                    background 0.2s;
+            }
+
+            .suggestion-chip:hover {
+                transform: translateY(-1px);
+                border-color: rgba(244, 114, 182, 0.42);
+                background: rgba(255, 255, 255, 0.12);
+            }
+
+            .pipeline {
+                display: none;
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                gap: 14px;
+                margin-top: 24px;
+            }
+
+            .step {
+                padding: 16px;
+                border-radius: 20px;
+                background: rgba(255, 255, 255, 0.55);
+                border: 1px solid rgba(17, 19, 21, 0.08);
+                min-height: 108px;
+            }
+
+            .step-index {
+                width: 34px;
+                height: 34px;
+                border-radius: 12px;
+                display: grid;
+                place-items: center;
+                background: rgba(17, 19, 21, 0.06);
+                color: var(--ink-soft);
+                font-size: 12px;
+                font-weight: 800;
+                margin-bottom: 18px;
+            }
+
+            .step.active {
+                background: rgba(37, 99, 235, 0.08);
+                border-color: rgba(37, 99, 235, 0.16);
+            }
+
+            .step.done {
+                background: rgba(25, 135, 84, 0.1);
+                border-color: rgba(25, 135, 84, 0.16);
+            }
+
+            .step.active .step-index {
+                background: var(--accent);
+                color: white;
+                box-shadow: 0 12px 22px rgba(37, 99, 235, 0.24);
+            }
+
+            .step.done .step-index {
+                background: var(--success);
+                color: white;
+            }
+
+            .step h3 {
+                margin: 0 0 8px;
+                font-size: 16px;
+            }
+
+            .step p {
+                margin: 0;
+                font-size: 13px;
+                color: var(--muted);
+                line-height: 1.6;
+            }
+
+            .results-grid {
+                display: grid;
+                grid-template-columns: minmax(0, 1.2fr) minmax(
+                        280px,
+                        min(36vw, 420px)
+                    );
+                gap: 24px;
+                margin-top: 26px;
+                align-items: start;
+                min-width: 0;
+            }
+
+            .results-shell,
+            .trace-shell,
+            .empty-shell {
+                border-radius: var(--radius-xl);
+                padding: 28px;
+                min-width: 0;
+            }
+
+            .results-shell,
+            .trace-shell {
+                overflow-x: hidden;
+            }
+
+            .shell-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                gap: 16px;
+                margin-bottom: 22px;
+            }
+
+            .shell-header h2 {
+                margin: 0;
+                font-size: 30px;
+                line-height: 1.1;
+                letter-spacing: -0.04em;
+            }
+
+            .shell-header p {
+                margin: 8px 0 0;
+                color: var(--muted);
+                font-size: 14px;
+                line-height: 1.6;
+            }
+
+            .header-actions {
+                display: flex;
+                gap: 10px;
+                flex-wrap: wrap;
+                justify-content: flex-end;
+            }
+
+            .ghost-pill {
+                border-radius: 999px;
+                padding: 10px 12px;
+                background: rgba(255, 255, 255, 0.6);
+                border: 1px solid rgba(17, 19, 21, 0.08);
+                color: var(--ink-soft);
+                font-size: 12px;
+                font-weight: 700;
+            }
+
+            .summary-banner {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 12px;
+                margin-bottom: 18px;
+            }
+
+            .summary-tile {
+                padding: 16px 18px;
+                border-radius: 20px;
+                background: rgba(255, 255, 255, 0.06);
+                border: 1px solid rgba(255, 255, 255, 0.12);
+            }
+
+            .summary-tile label {
+                display: block;
+                font-size: 11px;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                color: var(--muted);
+                margin-bottom: 8px;
+            }
+
+            .summary-tile strong {
+                display: block;
+                font-size: 18px;
+                line-height: 1.35;
+            }
+
+            .source-grid {
+                display: grid;
+                gap: 14px;
+            }
+
+            .source-card {
+                border-radius: 26px;
+                padding: 24px;
+                background: var(--panel-strong);
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                box-shadow: 0 18px 34px rgba(0, 0, 0, 0.4);
+            }
+
+            .source-top {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
+                margin-bottom: 16px;
+            }
+
+            .source-site {
+                font-size: 18px;
+                font-weight: 800;
+                letter-spacing: -0.03em;
+                font-family: "Sora", sans-serif;
+            }
+
+            .source-link {
+                color: var(--secondary);
+                text-decoration: none;
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .source-link:hover {
+                color: var(--accent);
+            }
+
+            .source-link svg {
+                width: 16px;
+                height: 16px;
+                opacity: 0.6;
+            }
+
+            .source-badge {
+                border-radius: 999px;
+                padding: 8px 12px;
+                background: var(--accent-soft);
+                color: #ffd2ea;
+                font-size: 12px;
+                font-weight: 800;
+            }
+
+            .source-summary {
+                color: var(--ink-soft);
+                line-height: 1.8;
+                font-size: 15px;
+                margin: 0 0 14px;
+            }
+
+            .source-list {
+                display: grid;
+                gap: 10px;
+                margin: 0;
+                padding: 0;
+                list-style: none;
+            }
+
+            .source-list li {
+                padding: 14px 16px;
+                border-radius: 18px;
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                line-height: 1.7;
+                font-size: 14px;
+                color: var(--ink-soft);
+            }
+
+            .trace-stack {
+                display: grid;
+                gap: 14px;
+            }
+
+            .trace-card {
+                border-radius: 22px;
+                padding: 18px;
+                background: rgba(255, 255, 255, 0.62);
+                border: 1px solid rgba(17, 19, 21, 0.08);
+            }
+
+            .trace-card h3 {
+                margin: 0 0 12px;
+                font-size: 14px;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                color: var(--muted);
+            }
+
+            .tag-row,
+            .trace-list {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                min-width: 0;
+                max-width: 100%;
+            }
+
+            .trace-list--scrape {
+                flex-direction: column;
+                flex-wrap: nowrap;
+                align-items: stretch;
+            }
+
+            .trace-scrape-row {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr);
+                gap: 6px;
+                padding: 10px 12px;
+                border-radius: 14px;
+                background: rgba(255, 255, 255, 0.55);
+                border: 1px solid rgba(17, 19, 21, 0.07);
+                max-width: 100%;
+                overflow: hidden;
+            }
+
+            .trace-scrape-host {
+                font-size: 12px;
+                font-weight: 800;
+                color: var(--ink);
+                word-break: break-word;
+                overflow-wrap: anywhere;
+            }
+
+            .trace-scrape-meta {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 8px;
+                min-width: 0;
+            }
+
+            .trace-scrape-detail {
+                flex: 1 1 100%;
+                min-width: 0;
+                margin: 0;
+                font-size: 11px;
+                font-weight: 600;
+                color: var(--muted);
+                line-height: 1.45;
+                word-break: break-word;
+                overflow-wrap: anywhere;
+                white-space: normal;
+            }
+
+            .tag,
+            .trace-pill {
+                border-radius: 999px;
+                padding: 9px 12px;
+                font-size: 12px;
+                font-weight: 700;
+                background: rgba(17, 19, 21, 0.05);
+                color: var(--ink-soft);
+                border: 1px solid rgba(17, 19, 21, 0.06);
+                max-width: 100%;
+                overflow-wrap: anywhere;
+                word-break: break-word;
+            }
+
+            .trace-pill.ok {
+                background: rgba(25, 135, 84, 0.1);
+                color: var(--success);
+            }
+            .trace-pill.blocked {
+                background: rgba(184, 106, 0, 0.12);
+                color: var(--warning);
+            }
+            .trace-pill.error,
+            .trace-pill.empty {
+                background: rgba(180, 35, 24, 0.1);
+                color: var(--danger);
+            }
+
+            .raw-box {
+                white-space: pre-wrap;
+                background: #15171a;
+                color: #f5f7fa;
+                padding: 18px;
+                border-radius: 18px;
+                font-size: 13px;
+                line-height: 1.7;
+                max-height: 320px;
+                overflow: auto;
+            }
+
+            .empty-shell {
+                margin-top: 26px;
+                text-align: center;
+                padding: 42px 28px;
+            }
+
+            .empty-shell strong {
+                display: block;
+                font-size: 22px;
+                margin-bottom: 10px;
+            }
+
+            .empty-shell p {
+                margin: 0;
+                color: var(--muted);
+                line-height: 1.75;
+            }
+
+            .hidden {
+                display: none !important;
+            }
+
+            @media (max-width: 1040px) {
+                .hero,
+                .results-grid {
+                    grid-template-columns: 1fr;
+                }
+            }
+
+            @media (max-width: 760px) {
+                .page {
+                    width: min(100% - 20px, 100%);
+                }
+                .hero-card,
+                .panel,
+                .results-shell,
+                .trace-shell,
+                .empty-shell {
+                    padding: 20px;
+                    border-radius: 24px;
+                }
+                h1 {
+                    font-size: 2.9rem;
+                }
+                .stats,
+                .pipeline,
+                .summary-banner {
+                    grid-template-columns: 1fr;
+                }
+                .actions {
+                    flex-direction: column;
+                }
+                .primary-btn,
+                .secondary-btn {
+                    width: 100%;
+                }
+                .shell-header {
+                    flex-direction: column;
+                }
+                .header-actions {
+                    justify-content: flex-start;
+                }
+                .nav {
+                    flex-direction: column;
+                    align-items: flex-start;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="page">
+            <div class="nav">
+                <a class="brand" href="#top">
+                    <div class="brand-mark">
+                        <svg
+                            width="22"
+                            height="22"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <path d="M4 15l5-5 4 4 7-8"></path>
+                            <path d="M20 8v5h-5"></path>
+                        </svg>
+                    </div>
+                    <div class="brand-copy">
+                        <strong>Signal Desk</strong>
+                        <span>Autonomous source discovery and extraction</span>
+                    </div>
+                </a>
+                <div class="nav-pill">
+                    Built for multi-source answers, not single-page guesses
+                </div>
+                <a class="nav-back" href="/">
+                    <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <path d="M19 12H5" />
+                        <path d="M12 19l-7-7 7-7" />
                     </svg>
+                    Back to home
+                </a>
+            </div>
+
+            <section class="hero">
+                <div class="hero-card">
+                    <div class="eyebrow">
+                        Live site selection · fallback aware · source-first
+                    </div>
+                    <h1>Research that looks designed, not dumped.</h1>
+                    <p class="hero-copy">
+                        Ask for prices, specs, news, quotes, or job data. The
+                        agent ranks live sources, keeps backup candidates ready,
+                        scrapes the strongest pages, and turns the answer into a
+                        readable brief.
+                    </p>
+                    <div class="stats">
+                        <div class="stat">
+                            <strong>3+</strong>
+                            <span
+                                >Target successful sources for price-heavy
+                                requests when fallbacks are available.</span
+                            >
+                        </div>
+                        <div class="stat">
+                            <strong>Ranked</strong>
+                            <span
+                                >Primary and fallback queues are scored per
+                                query instead of pinned to one rigid list.</span
+                            >
+                        </div>
+                        <div class="stat">
+                            <strong>Readable</strong>
+                            <span
+                                >Answers render as source cards with clean
+                                bullets instead of raw model text.</span
+                            >
+                        </div>
+                    </div>
                 </div>
-                <div class="brand-copy">
-                    <strong>Signal Desk</strong>
-                    <span>Autonomous source discovery and extraction</span>
+
+                <aside class="panel">
+                    <div class="panel-top">
+                        <div class="panel-title">New brief</div>
+                        <div class="panel-badge">Top-notch mode</div>
+                    </div>
+                    <div class="query-shell">
+                        <textarea
+                            id="query"
+                            class="query-box"
+                            placeholder="Try: Compare Samsung Galaxy S25 prices across Indian stores&#10;Or: Find Samsung S25 specifications from the most reliable sites"
+                        ></textarea>
+                        <div class="actions">
+                            <button
+                                id="askBtn"
+                                class="primary-btn"
+                                onclick="ask()"
+                            >
+                                Launch Research
+                            </button>
+                            <button
+                                class="secondary-btn"
+                                onclick="scrollToResults()"
+                            >
+                                Jump to results
+                            </button>
+                        </div>
+                    </div>
+                    <div class="suggestions">
+                        <button
+                            class="suggestion-chip"
+                            onclick="
+                                setQuery(
+                                    'Compare Samsung Galaxy S25 prices across Indian stores',
+                                )
+                            "
+                        >
+                            Samsung S25 prices
+                        </button>
+                        <button
+                            class="suggestion-chip"
+                            onclick="
+                                setQuery('Samsung Galaxy S25 specifications')
+                            "
+                        >
+                            Samsung S25 specs
+                        </button>
+                        <button
+                            class="suggestion-chip"
+                            onclick="setQuery('Latest AI news today')"
+                        >
+                            AI news
+                        </button>
+                        <button
+                            class="suggestion-chip"
+                            onclick="setQuery('Quotes about success')"
+                        >
+                            Quotes about success
+                        </button>
+                    </div>
+                </aside>
+            </section>
+
+            <section class="pipeline" id="pipeline">
+                <article class="step" id="step1">
+                    <div class="step-index">01</div>
+                    <h3 id="s1">Understanding the brief</h3>
+                    <p id="st1">
+                        Turning the request into search queries and source
+                        priorities.
+                    </p>
+                </article>
+                <article class="step" id="step2">
+                    <div class="step-index">02</div>
+                    <h3 id="s2">Selecting sources</h3>
+                    <p id="st2">
+                        Scoring primary and fallback sites for this exact query.
+                    </p>
+                </article>
+                <article class="step" id="step3">
+                    <div class="step-index">03</div>
+                    <h3 id="s3">Extracting evidence</h3>
+                    <p id="st3">
+                        Scraping the best candidates and dropping weak pages.
+                    </p>
+                </article>
+                <article class="step" id="step4">
+                    <div class="step-index">04</div>
+                    <h3 id="s4">Packaging results</h3>
+                    <p id="st4">
+                        Formatting the answer into cards you can actually scan.
+                    </p>
+                </article>
+            </section>
+
+            <section id="emptyState" class="empty-shell">
+                <strong>Ask a query to generate a multi-source brief.</strong>
+                <p>
+                    The answer will land here as structured source cards, with a
+                    separate trace of the queries, primaries, fallbacks, and
+                    scrape outcomes.
+                </p>
+            </section>
+
+            <section id="resultsSection" class="results-grid hidden">
+                <div class="results-shell">
+                    <div class="shell-header">
+                        <div>
+                            <h2 id="resultsHeadline">Research brief</h2>
+                            <p id="resultsSubline">
+                                Structured extraction across ranked sources.
+                            </p>
+                        </div>
+                        <div class="header-actions">
+                            <button
+                                id="toggleRawBtn"
+                                class="secondary-btn"
+                                onclick="toggleRaw()"
+                            >
+                                Show raw output
+                            </button>
+                            <button
+                                id="exportBtn"
+                                class="secondary-btn"
+                                onclick="exportCSV()"
+                            >
+                                Export CSV
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="summary-banner">
+                        <div class="summary-tile">
+                            <label>Category</label>
+                            <strong id="categoryValue">-</strong>
+                        </div>
+                        <div class="summary-tile">
+                            <label>Keyword</label>
+                            <strong id="keywordValue">-</strong>
+                        </div>
+                        <div class="summary-tile">
+                            <label>Visible Sources</label>
+                            <strong id="successCount">0</strong>
+                        </div>
+                    </div>
+
+                    <div id="sourceGrid" class="source-grid"></div>
+                    <div id="rawBox" class="raw-box hidden"></div>
                 </div>
-            </a>
-            <div class="nav-pill">Built for multi-source answers, not single-page guesses</div>
-            <a class="nav-back" href="/">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/>
-                </svg>
-                Back to home
-            </a>
+
+                <aside class="trace-shell">
+                    <div class="shell-header">
+                        <div>
+                            <h2>Trace</h2>
+                            <p>
+                                See what the agent searched, which sites it kept
+                                in reserve, and what got rejected.
+                            </p>
+                        </div>
+                        <div class="ghost-pill" id="traceStatus">Idle</div>
+                    </div>
+
+                    <div class="trace-stack">
+                        <div class="trace-card">
+                            <h3>Queries Used</h3>
+                            <div id="queryTags" class="tag-row"></div>
+                        </div>
+                        <div class="trace-card">
+                            <h3>Primary Queue</h3>
+                            <div id="primaryTags" class="tag-row"></div>
+                        </div>
+                        <div class="trace-card">
+                            <h3>Fallback Queue</h3>
+                            <div id="fallbackTags" class="tag-row"></div>
+                        </div>
+                        <div class="trace-card">
+                            <h3>Scrape Outcomes</h3>
+                            <div
+                                id="scrapeTags"
+                                class="trace-list trace-list--scrape"
+                            ></div>
+                        </div>
+                    </div>
+                </aside>
+            </section>
         </div>
 
-        <section class="hero">
-            <div class="hero-card">
-                <div class="eyebrow">Live site selection · fallback aware · source-first</div>
-                <h1>Research that looks designed, not dumped.</h1>
-                <p class="hero-copy">
-                    Ask for prices, specs, news, quotes, or job data. The agent ranks live sources, keeps backup candidates ready,
-                    scrapes the strongest pages, and turns the answer into a readable brief.
-                </p>
-                <div class="stats">
-                    <div class="stat">
-                        <strong>3+</strong>
-                        <span>Target successful sources for price-heavy requests when fallbacks are available.</span>
-                    </div>
-                    <div class="stat">
-                        <strong>Ranked</strong>
-                        <span>Primary and fallback queues are scored per query instead of pinned to one rigid list.</span>
-                    </div>
-                    <div class="stat">
-                        <strong>Readable</strong>
-                        <span>Answers render as source cards with clean bullets instead of raw model text.</span>
-                    </div>
-                </div>
-            </div>
+        <script>
+            let lastExtracted = "";
+            let lastResultSections = [];
+            let rawVisible = false;
 
-            <aside class="panel">
-                <div class="panel-top">
-                    <div class="panel-title">New brief</div>
-                    <div class="panel-badge">Top-notch mode</div>
-                </div>
-                <div class="query-shell">
-                    <textarea id="query" class="query-box" placeholder="Try: Compare Samsung Galaxy S25 prices across Indian stores&#10;Or: Find Samsung S25 specifications from the most reliable sites"></textarea>
-                    <div class="actions">
-                        <button id="askBtn" class="primary-btn" onclick="ask()">Launch Research</button>
-                        <button class="secondary-btn" onclick="scrollToResults()">Jump to results</button>
-                    </div>
-                </div>
-                <div class="suggestions">
-                    <button class="suggestion-chip" onclick="setQuery('Compare Samsung Galaxy S25 prices across Indian stores')">Samsung S25 prices</button>
-                    <button class="suggestion-chip" onclick="setQuery('Samsung Galaxy S25 specifications')">Samsung S25 specs</button>
-                    <button class="suggestion-chip" onclick="setQuery('Latest AI news today')">AI news</button>
-                    <button class="suggestion-chip" onclick="setQuery('Quotes about success')">Quotes about success</button>
-                </div>
-            </aside>
-        </section>
-
-        <section class="pipeline" id="pipeline">
-            <article class="step" id="step1">
-                <div class="step-index">01</div>
-                <h3 id="s1">Understanding the brief</h3>
-                <p id="st1">Turning the request into search queries and source priorities.</p>
-            </article>
-            <article class="step" id="step2">
-                <div class="step-index">02</div>
-                <h3 id="s2">Selecting sources</h3>
-                <p id="st2">Scoring primary and fallback sites for this exact query.</p>
-            </article>
-            <article class="step" id="step3">
-                <div class="step-index">03</div>
-                <h3 id="s3">Extracting evidence</h3>
-                <p id="st3">Scraping the best candidates and dropping weak pages.</p>
-            </article>
-            <article class="step" id="step4">
-                <div class="step-index">04</div>
-                <h3 id="s4">Packaging results</h3>
-                <p id="st4">Formatting the answer into cards you can actually scan.</p>
-            </article>
-        </section>
-
-        <section id="emptyState" class="empty-shell">
-            <strong>Ask a query to generate a multi-source brief.</strong>
-            <p>The answer will land here as structured source cards, with a separate trace of the queries, primaries, fallbacks, and scrape outcomes.</p>
-        </section>
-
-        <section id="resultsSection" class="results-grid hidden">
-            <div class="results-shell">
-                <div class="shell-header">
-                    <div>
-                        <h2 id="resultsHeadline">Research brief</h2>
-                        <p id="resultsSubline">Structured extraction across ranked sources.</p>
-                    </div>
-                    <div class="header-actions">
-                        <button id="toggleRawBtn" class="secondary-btn" onclick="toggleRaw()">Show raw output</button>
-                        <button id="exportBtn" class="secondary-btn" onclick="exportCSV()">Export CSV</button>
-                    </div>
-                </div>
-
-                <div class="summary-banner">
-                    <div class="summary-tile">
-                        <label>Category</label>
-                        <strong id="categoryValue">-</strong>
-                    </div>
-                    <div class="summary-tile">
-                        <label>Keyword</label>
-                        <strong id="keywordValue">-</strong>
-                    </div>
-                    <div class="summary-tile">
-                        <label>Visible Sources</label>
-                        <strong id="successCount">0</strong>
-                    </div>
-                </div>
-
-                <div id="sourceGrid" class="source-grid"></div>
-                <div id="rawBox" class="raw-box hidden"></div>
-            </div>
-
-            <aside class="trace-shell">
-                <div class="shell-header">
-                    <div>
-                        <h2>Trace</h2>
-                        <p>See what the agent searched, which sites it kept in reserve, and what got rejected.</p>
-                    </div>
-                    <div class="ghost-pill" id="traceStatus">Idle</div>
-                </div>
-
-                <div class="trace-stack">
-                    <div class="trace-card">
-                        <h3>Queries Used</h3>
-                        <div id="queryTags" class="tag-row"></div>
-                    </div>
-                    <div class="trace-card">
-                        <h3>Primary Queue</h3>
-                        <div id="primaryTags" class="tag-row"></div>
-                    </div>
-                    <div class="trace-card">
-                        <h3>Fallback Queue</h3>
-                        <div id="fallbackTags" class="tag-row"></div>
-                    </div>
-                    <div class="trace-card">
-                        <h3>Scrape Outcomes</h3>
-                        <div id="scrapeTags" class="trace-list trace-list--scrape"></div>
-                    </div>
-                </div>
-            </aside>
-        </section>
-    </div>
-
-    <script>
-        let lastExtracted = '';
-        let lastResultSections = [];
-        let rawVisible = false;
-
-        function setQuery(value) {
-            document.getElementById('query').value = value;
-        }
-
-        function scrollToResults() {
-            document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-
-        function safeHtml(value) {
-            return String(value)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#39;');
-        }
-
-        function normalizeText(value) {
-            return String(value || '')
-                .replaceAll('â‚¹', '\u20B9')
-                .replaceAll('â€"', ' - ')
-                .replaceAll('â€"', ' - ')
-                .replaceAll('â€™', "'")
-                .replaceAll('â€œ', '"')
-                .replaceAll('â€', '"');
-        }
-
-        function hostnameFromUrl(value) {
-            try {
-                return new URL(value).hostname;
-            } catch {
-                return value;
+            function setQuery(value) {
+                document.getElementById("query").value = value;
             }
-        }
 
-        function setStep(index, title, detail, state) {
-            const card = document.getElementById(`step${index}`);
-            card.className = `step ${state || ''}`;
-            document.getElementById(`s${index}`).textContent = title;
-            document.getElementById(`st${index}`).textContent = detail;
-        }
-
-        function setBusy(isBusy) {
-            const button = document.getElementById('askBtn');
-            button.disabled = isBusy;
-            button.textContent = isBusy ? 'Research in progress...' : 'Launch Research';
-        }
-
-        function renderTags(elementId, values) {
-            const el = document.getElementById(elementId);
-            if (!values || !values.length) {
-                el.innerHTML = '<span class="tag">None queued</span>';
-                return;
+            function scrollToResults() {
+                document
+                    .getElementById("resultsSection")
+                    .scrollIntoView({ behavior: "smooth", block: "start" });
             }
-            el.innerHTML = values.map(value => `<span class="tag">${safeHtml(hostnameFromUrl(value))}</span>`).join('');
-        }
 
-        function renderQueryTags(values) {
-            const el = document.getElementById('queryTags');
-            if (!values || !values.length) {
-                el.innerHTML = '<span class="tag">No query trace</span>';
-                return;
+            function safeHtml(value) {
+                return String(value)
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#39;");
             }
-            el.innerHTML = values.map(value => `<span class="tag">${safeHtml(value)}</span>`).join('');
-        }
 
-        function compactTraceDetail(value) {
-            const t = normalizeText(String(value || '').trim());
-            if (t.length <= 200) return t;
-            return `${t.slice(0, 197).trim()}…`;
-        }
-
-        function renderScrapeSummary(items) {
-            const el = document.getElementById('scrapeTags');
-            if (!items || !items.length) {
-                el.innerHTML = '<span class="trace-pill">No scrape attempts yet</span>';
-                return;
+            function normalizeText(value) {
+                return String(value || "")
+                    .replaceAll("â‚¹", "\u20B9")
+                    .replaceAll('â€"', " - ")
+                    .replaceAll('â€"', " - ")
+                    .replaceAll("â€™", "'")
+                    .replaceAll("â€œ", '"')
+                    .replaceAll("â€", '"');
             }
-            el.innerHTML = items.map(item => {
-                const host = hostnameFromUrl(item.url || 'unknown');
-                const status = item.status || 'unknown';
-                const err = item.error ? compactTraceDetail(item.error) : '';
-                const len = item.text_length ? `${item.text_length} chars` : '';
-                const detail = err ? err : len;
-                const detailLine = detail
-                    ? `<p class="trace-scrape-detail">${safeHtml(detail)}</p>`
-                    : '';
-                return `
+
+            function hostnameFromUrl(value) {
+                try {
+                    return new URL(value).hostname;
+                } catch {
+                    return value;
+                }
+            }
+
+            function setStep(index, title, detail, state) {
+                const card = document.getElementById(`step${index}`);
+                card.className = `step ${state || ""}`;
+                document.getElementById(`s${index}`).textContent = title;
+                document.getElementById(`st${index}`).textContent = detail;
+            }
+
+            function setBusy(isBusy) {
+                const button = document.getElementById("askBtn");
+                button.disabled = isBusy;
+                button.textContent = isBusy
+                    ? "Research in progress..."
+                    : "Launch Research";
+            }
+
+            function renderTags(elementId, values) {
+                const el = document.getElementById(elementId);
+                if (!values || !values.length) {
+                    el.innerHTML = '<span class="tag">None queued</span>';
+                    return;
+                }
+                el.innerHTML = values
+                    .map(
+                        (value) =>
+                            `<span class="tag">${safeHtml(hostnameFromUrl(value))}</span>`,
+                    )
+                    .join("");
+            }
+
+            function renderQueryTags(values) {
+                const el = document.getElementById("queryTags");
+                if (!values || !values.length) {
+                    el.innerHTML = '<span class="tag">No query trace</span>';
+                    return;
+                }
+                el.innerHTML = values
+                    .map(
+                        (value) =>
+                            `<span class="tag">${safeHtml(value)}</span>`,
+                    )
+                    .join("");
+            }
+
+            function compactTraceDetail(value) {
+                const t = normalizeText(String(value || "").trim());
+                if (t.length <= 200) return t;
+                return `${t.slice(0, 197).trim()}…`;
+            }
+
+            function renderScrapeSummary(items) {
+                const el = document.getElementById("scrapeTags");
+                if (!items || !items.length) {
+                    el.innerHTML =
+                        '<span class="trace-pill">No scrape attempts yet</span>';
+                    return;
+                }
+                el.innerHTML = items
+                    .map((item) => {
+                        const host = hostnameFromUrl(item.url || "unknown");
+                        const status = item.status || "unknown";
+                        const err = item.error
+                            ? compactTraceDetail(item.error)
+                            : "";
+                        const len = item.text_length
+                            ? `${item.text_length} chars`
+                            : "";
+                        const detail = err ? err : len;
+                        const detailLine = detail
+                            ? `<p class="trace-scrape-detail">${safeHtml(detail)}</p>`
+                            : "";
+                        return `
                     <div class="trace-scrape-row">
                         <div class="trace-scrape-host">${safeHtml(host)}</div>
                         <div class="trace-scrape-meta">
@@ -997,145 +1203,222 @@
                         </div>
                         ${detailLine}
                     </div>`;
-            }).join('');
-        }
-
-        function parseSectionsFromRaw(text) {
-            const lines = normalizeText(text).split('\n');
-            const sections = [];
-            let current = null;
-
-            for (const rawLine of lines) {
-                const line = rawLine.trim();
-                if (!line) continue;
-
-                const headerMatch = line.match(/^\[?([^\]]+?)\]?\s*:\s*(.*)$/);
-                if (headerMatch && (headerMatch[1].includes('.') || headerMatch[1].includes('SOURCE'))) {
-                    if (current) sections.push(current);
-                    current = { site: headerMatch[1].trim(), summary: '', items: [] };
-                    const detail = headerMatch[2].trim();
-                    if (detail.startsWith('-')) current.items.push(detail.replace(/^-\s*/, ''));
-                    else current.summary = detail;
-                    continue;
-                }
-
-                if (!current) continue;
-                if (line.startsWith('-')) current.items.push(line.replace(/^-\s*/, ''));
-                else if (current.summary) current.summary += ` ${line}`;
-                else current.summary = line;
+                    })
+                    .join("");
             }
 
-            if (current) sections.push(current);
-            return sections;
-        }
+            function parseSectionsFromRaw(text) {
+                const lines = normalizeText(text).split("\n");
+                const sections = [];
+                let current = null;
 
-        function cleanSiteLabel(value) {
-            return normalizeText(value || '')
-                .replace(/^\*+|\*+$/g, '')
-                .replace(/^\[|\]$/g, '')
-                .trim();
-        }
+                for (const rawLine of lines) {
+                    const line = rawLine.trim();
+                    if (!line) continue;
 
-        function findSourceUrl(siteLabel, sites, sourceByHost) {
-            const cleanLabel = cleanSiteLabel(siteLabel).toLowerCase().replace(/^www\./, '');
-            if (sourceByHost && typeof sourceByHost === 'object') {
-                const candidates = [cleanLabel, 'www.' + cleanLabel];
-                for (const key of candidates) {
-                    if (sourceByHost[key]) return sourceByHost[key];
+                    const headerMatch = line.match(
+                        /^\[?([^\]]+?)\]?\s*:\s*(.*)$/,
+                    );
+                    if (
+                        headerMatch &&
+                        (headerMatch[1].includes(".") ||
+                            headerMatch[1].includes("SOURCE"))
+                    ) {
+                        if (current) sections.push(current);
+                        current = {
+                            site: headerMatch[1].trim(),
+                            summary: "",
+                            items: [],
+                        };
+                        const detail = headerMatch[2].trim();
+                        if (detail.startsWith("-"))
+                            current.items.push(detail.replace(/^-\s*/, ""));
+                        else current.summary = detail;
+                        continue;
+                    }
+
+                    if (!current) continue;
+                    if (line.startsWith("-"))
+                        current.items.push(line.replace(/^-\s*/, ""));
+                    else if (current.summary) current.summary += ` ${line}`;
+                    else current.summary = line;
                 }
-                for (const [host, url] of Object.entries(sourceByHost)) {
-                    const h = String(host).toLowerCase().replace(/^www\./, '');
-                    if (!h) continue;
-                    if (h === cleanLabel || h.includes(cleanLabel) || cleanLabel.includes(h)) return url;
-                }
+
+                if (current) sections.push(current);
+                return sections;
             }
-            return (sites || []).find(u => hostnameFromUrl(u).toLowerCase().replace(/^www\./, '') === cleanLabel);
-        }
 
-        function mergeSectionsBySite(sections) {
-            const grouped = new Map();
+            function cleanSiteLabel(value) {
+                return normalizeText(value || "")
+                    .replace(/^\*+|\*+$/g, "")
+                    .replace(/^\[|\]$/g, "")
+                    .trim();
+            }
 
-            for (const section of sections) {
-                const site = cleanSiteLabel(section.site || 'Unknown source');
-                const summary = normalizeText(section.summary || '').trim();
-                const items = (section.items || []).map(item => normalizeText(item).trim()).filter(Boolean);
-
-                if (!grouped.has(site)) {
-                    grouped.set(site, { site, summary: '', items: [] });
-                }
-
-                const target = grouped.get(site);
-
-                if (summary) {
-                    const summaryParts = summary
-                        .split(/\s*\*\s*/g)
-                        .map(part => part.trim())
-                        .filter(Boolean);
-
-                    if (summaryParts.length > 1) {
-                        target.items.push(...summaryParts);
-                    } else if (!target.summary) {
-                        target.summary = summary;
-                    } else if (target.summary !== summary) {
-                        target.items.push(summary);
+            function findSourceUrl(siteLabel, sites, sourceByHost) {
+                const cleanLabel = cleanSiteLabel(siteLabel)
+                    .toLowerCase()
+                    .replace(/^www\./, "");
+                if (sourceByHost && typeof sourceByHost === "object") {
+                    const candidates = [cleanLabel, "www." + cleanLabel];
+                    for (const key of candidates) {
+                        if (sourceByHost[key]) return sourceByHost[key];
+                    }
+                    for (const [host, url] of Object.entries(sourceByHost)) {
+                        const h = String(host)
+                            .toLowerCase()
+                            .replace(/^www\./, "");
+                        if (!h) continue;
+                        if (
+                            h === cleanLabel ||
+                            h.includes(cleanLabel) ||
+                            cleanLabel.includes(h)
+                        )
+                            return url;
                     }
                 }
-
-                target.items.push(...items);
+                return (sites || []).find(
+                    (u) =>
+                        hostnameFromUrl(u)
+                            .toLowerCase()
+                            .replace(/^www\./, "") === cleanLabel,
+                );
             }
 
-            return Array.from(grouped.values()).map(section => ({
-                ...section,
-                items: Array.from(new Set(section.items))
-            }));
-        }
+            function mergeSectionsBySite(sections) {
+                const grouped = new Map();
 
-        function compressSummary(summary) {
-            const clean = normalizeText(summary || '').replace(/\s+/g, ' ').trim();
-            if (!clean) return '';
-            if (clean.length <= 180) return clean;
-            return `${clean.slice(0, 177).trim()}...`;
-        }
+                for (const section of sections) {
+                    const site = cleanSiteLabel(
+                        section.site || "Unknown source",
+                    );
+                    const summary = normalizeText(section.summary || "").trim();
+                    const items = (section.items || [])
+                        .map((item) => normalizeText(item).trim())
+                        .filter(Boolean);
 
-        function renderResults(data) {
-            const sections = (data.result_sections && data.result_sections.length)
-                ? data.result_sections
-                : parseSectionsFromRaw(data.extracted || '');
-            const visibleSections = mergeSectionsBySite(sections).filter(section => {
-                const summary = normalizeText(section.summary || '').trim();
-                const items = (section.items || []).map(item => normalizeText(item).trim()).filter(Boolean);
-                const cleanSummary = summary.replace(/^[\-*•.\s]+/, '').trim().toLowerCase();
-                const allowedItems = items.filter(item => {
-                    const cleaned = item.replace(/^[\-*•.\s]+/, '').trim().toLowerCase();
-                    return cleaned && !['no data found', 'no relevant data found', 'no prices mentioned', 'no specific price mentioned'].includes(cleaned);
-                });
-                section.items = allowedItems;
-                if (['no data found', 'no relevant data found', 'no prices mentioned', 'no specific price mentioned'].includes(cleanSummary)) return false;
-                if (!summary && section.items.length === 0) return false;
-                return !!summary || section.items.length > 0;
-            });
+                    if (!grouped.has(site)) {
+                        grouped.set(site, { site, summary: "", items: [] });
+                    }
 
-            const grid = document.getElementById('sourceGrid');
+                    const target = grouped.get(site);
 
-            if (!visibleSections.length) {
-                grid.innerHTML = '<article class="source-card"><div class="source-top"><div class="source-site">No structured sections</div><div class="source-badge">Model output</div></div><p class="source-summary">The extractor returned text, but it could not be split into clean source cards.</p></article>';
-                return;
+                    if (summary) {
+                        const summaryParts = summary
+                            .split(/\s*\*\s*/g)
+                            .map((part) => part.trim())
+                            .filter(Boolean);
+
+                        if (summaryParts.length > 1) {
+                            target.items.push(...summaryParts);
+                        } else if (!target.summary) {
+                            target.summary = summary;
+                        } else if (target.summary !== summary) {
+                            target.items.push(summary);
+                        }
+                    }
+
+                    target.items.push(...items);
+                }
+
+                return Array.from(grouped.values()).map((section) => ({
+                    ...section,
+                    items: Array.from(new Set(section.items)),
+                }));
             }
 
-            grid.innerHTML = visibleSections.map(section => {
-                const items = (section.items || []).filter(Boolean).slice(0, 3);
-                const badge = items.length ? `${items.length} extracted` : 'single summary';
-                const siteLabel = cleanSiteLabel(section.site);
-                const siteUrl = findSourceUrl(siteLabel, data.sites_scraped || [], data.source_by_host || null);
-                const title = siteUrl
-                    ? `<a class="source-link" href="${safeHtml(siteUrl)}" target="_blank" rel="noopener noreferrer">${safeHtml(siteLabel)}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg></a>`
-                    : safeHtml(siteLabel);
-                const summaryText = items.length ? '' : compressSummary(section.summary);
-                const summary = summaryText ? `<p class="source-summary">${safeHtml(summaryText)}</p>` : '';
-                const list = items.length
-                    ? `<ul class="source-list">${items.map(item => `<li>${safeHtml(normalizeText(item))}</li>`).join('')}</ul>`
-                    : '';
-                return `
+            function compressSummary(summary) {
+                const clean = normalizeText(summary || "")
+                    .replace(/\s+/g, " ")
+                    .trim();
+                if (!clean) return "";
+                if (clean.length <= 180) return clean;
+                return `${clean.slice(0, 177).trim()}...`;
+            }
+
+            function renderResults(data) {
+                const sections =
+                    data.result_sections && data.result_sections.length
+                        ? data.result_sections
+                        : parseSectionsFromRaw(data.extracted || "");
+                const visibleSections = mergeSectionsBySite(sections).filter(
+                    (section) => {
+                        const summary = normalizeText(
+                            section.summary || "",
+                        ).trim();
+                        const items = (section.items || [])
+                            .map((item) => normalizeText(item).trim())
+                            .filter(Boolean);
+                        const cleanSummary = summary
+                            .replace(/^[\-*•.\s]+/, "")
+                            .trim()
+                            .toLowerCase();
+                        const allowedItems = items.filter((item) => {
+                            const cleaned = item
+                                .replace(/^[\-*•.\s]+/, "")
+                                .trim()
+                                .toLowerCase();
+                            return (
+                                cleaned &&
+                                ![
+                                    "no data found",
+                                    "no relevant data found",
+                                    "no prices mentioned",
+                                    "no specific price mentioned",
+                                ].includes(cleaned)
+                            );
+                        });
+                        section.items = allowedItems;
+                        if (
+                            [
+                                "no data found",
+                                "no relevant data found",
+                                "no prices mentioned",
+                                "no specific price mentioned",
+                            ].includes(cleanSummary)
+                        )
+                            return false;
+                        if (!summary && section.items.length === 0)
+                            return false;
+                        return !!summary || section.items.length > 0;
+                    },
+                );
+
+                const grid = document.getElementById("sourceGrid");
+
+                if (!visibleSections.length) {
+                    grid.innerHTML =
+                        '<article class="source-card"><div class="source-top"><div class="source-site">No structured sections</div><div class="source-badge">Model output</div></div><p class="source-summary">The extractor returned text, but it could not be split into clean source cards.</p></article>';
+                    return;
+                }
+
+                grid.innerHTML = visibleSections
+                    .map((section) => {
+                        const items = (section.items || [])
+                            .filter(Boolean)
+                            .slice(0, 3);
+                        const badge = items.length
+                            ? `${items.length} extracted`
+                            : "single summary";
+                        const siteLabel = cleanSiteLabel(section.site);
+                        const siteUrl = findSourceUrl(
+                            siteLabel,
+                            data.sites_scraped || [],
+                            data.source_by_host || null,
+                        );
+                        const title = siteUrl
+                            ? `<a class="source-link" href="${safeHtml(siteUrl)}" target="_blank" rel="noopener noreferrer">${safeHtml(siteLabel)}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg></a>`
+                            : safeHtml(siteLabel);
+                        const summaryText = items.length
+                            ? ""
+                            : compressSummary(section.summary);
+                        const summary = summaryText
+                            ? `<p class="source-summary">${safeHtml(summaryText)}</p>`
+                            : "";
+                        const list = items.length
+                            ? `<ul class="source-list">${items.map((item) => `<li>${safeHtml(normalizeText(item))}</li>`).join("")}</ul>`
+                            : "";
+                        return `
                     <article class="source-card">
                         <div class="source-top">
                             <div class="source-site">${title}</div>
@@ -1145,111 +1428,198 @@
                         ${list}
                     </article>
                 `;
-            }).join('');
-        }
-
-        function renderTrace(debug) {
-            renderQueryTags(debug?.queries || []);
-            renderTags('primaryTags', debug?.primary || []);
-            renderTags('fallbackTags', debug?.fallback || []);
-            renderScrapeSummary(debug?.scrape_summary || []);
-        }
-
-        function toggleRaw() {
-            rawVisible = !rawVisible;
-            document.getElementById('rawBox').classList.toggle('hidden', !rawVisible);
-            document.getElementById('toggleRawBtn').textContent = rawVisible ? 'Hide raw output' : 'Show raw output';
-        }
-
-        function exportCSV() {
-            const sections = (lastResultSections && lastResultSections.length)
-                ? lastResultSections
-                : parseSectionsFromRaw(lastExtracted);
-            const rows = [['site', 'summary_or_item']];
-            for (const section of sections) {
-                if (section.summary) rows.push([section.site, section.summary]);
-                for (const item of section.items || []) rows.push([section.site, item]);
-            }
-            const csv = rows.map(row => row.map(value => `"${String(normalizeText(value)).replace(/"/g, '""')}"`).join(',')).join('\n');
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = 'signal-desk-results.csv';
-            link.click();
-        }
-
-        async function ask() {
-            const query = document.getElementById('query').value.trim();
-            if (!query) {
-                alert('Type a research request first.');
-                return;
+                    })
+                    .join("");
             }
 
-            setBusy(true);
-            document.getElementById('pipeline').style.display = 'grid';
-            document.getElementById('emptyState').classList.add('hidden');
-            document.getElementById('resultsSection').classList.remove('hidden');
-            document.getElementById('sourceGrid').innerHTML = '';
-            document.getElementById('rawBox').classList.add('hidden');
-            rawVisible = false;
-            document.getElementById('toggleRawBtn').textContent = 'Show raw output';
-            document.getElementById('traceStatus').textContent = 'Running';
+            function renderTrace(debug) {
+                renderQueryTags(debug?.queries || []);
+                renderTags("primaryTags", debug?.primary || []);
+                renderTags("fallbackTags", debug?.fallback || []);
+                renderScrapeSummary(debug?.scrape_summary || []);
+            }
 
-            setStep(1, 'Understanding the brief', 'Generating query strategy and category match.', 'active');
-            setStep(2, 'Selecting sources', 'Building the ranked primary and fallback queues.', '');
-            setStep(3, 'Extracting evidence', 'Scraping strong pages and discarding weak ones.', '');
-            setStep(4, 'Packaging results', 'Formatting the answer into cards.', '');
+            function toggleRaw() {
+                rawVisible = !rawVisible;
+                document
+                    .getElementById("rawBox")
+                    .classList.toggle("hidden", !rawVisible);
+                document.getElementById("toggleRawBtn").textContent = rawVisible
+                    ? "Hide raw output"
+                    : "Show raw output";
+            }
 
-            try {
-                const response = await fetch('/agent', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ request: query })
+            function exportCSV() {
+                const sections =
+                    lastResultSections && lastResultSections.length
+                        ? lastResultSections
+                        : parseSectionsFromRaw(lastExtracted);
+                const rows = [["site", "summary_or_item"]];
+                for (const section of sections) {
+                    if (section.summary)
+                        rows.push([section.site, section.summary]);
+                    for (const item of section.items || [])
+                        rows.push([section.site, item]);
+                }
+                const csv = rows
+                    .map((row) =>
+                        row
+                            .map(
+                                (value) =>
+                                    `"${String(normalizeText(value)).replace(/"/g, '""')}"`,
+                            )
+                            .join(","),
+                    )
+                    .join("\n");
+                const blob = new Blob([csv], {
+                    type: "text/csv;charset=utf-8",
                 });
-                const data = await response.json();
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.download = "signal-desk-results.csv";
+                link.click();
+            }
 
-                setStep(1, 'Understanding the brief', 'Keyword and category locked in.', 'done');
-                setStep(2, 'Selecting sources', 'Primary and fallback source queues prepared.', 'done');
-                setStep(3, 'Extracting evidence', 'Evidence gathered and filtered.', data.status === 'success' ? 'done' : 'active');
+            async function ask() {
+                const query = document.getElementById("query").value.trim();
+                if (!query) {
+                    alert("Type a research request first.");
+                    return;
+                }
 
-                document.getElementById('resultsHeadline').textContent = normalizeText(query);
-                document.getElementById('resultsSubline').textContent = data.status === 'success'
-                    ? 'Multi-source answer generated from ranked sites.'
-                    : 'The request completed with no usable extraction.';
-                document.getElementById('categoryValue').textContent = data.category || data.debug?.category || '-';
-                document.getElementById('keywordValue').textContent = normalizeText(data.keyword || data.debug?.keyword || '-');
-                const visibleSourceCount = data.visible_source_count ?? ((data.result_sections || []).length) ?? ((data.sites_scraped || []).length);
-                document.getElementById('successCount').textContent = String(visibleSourceCount);
+                setBusy(true);
+                document.getElementById("pipeline").style.display = "grid";
+                document.getElementById("emptyState").classList.add("hidden");
+                document
+                    .getElementById("resultsSection")
+                    .classList.remove("hidden");
+                document.getElementById("sourceGrid").innerHTML = "";
+                document.getElementById("rawBox").classList.add("hidden");
+                rawVisible = false;
+                document.getElementById("toggleRawBtn").textContent =
+                    "Show raw output";
+                document.getElementById("traceStatus").textContent = "Running";
 
-                renderTrace(data.debug || {});
+                setStep(
+                    1,
+                    "Understanding the brief",
+                    "Generating query strategy and category match.",
+                    "active",
+                );
+                setStep(
+                    2,
+                    "Selecting sources",
+                    "Building the ranked primary and fallback queues.",
+                    "",
+                );
+                setStep(
+                    3,
+                    "Extracting evidence",
+                    "Scraping strong pages and discarding weak ones.",
+                    "",
+                );
+                setStep(
+                    4,
+                    "Packaging results",
+                    "Formatting the answer into cards.",
+                    "",
+                );
 
-                if (data.status === 'success') {
-                    lastExtracted = normalizeText(data.extracted || '');
-                    lastResultSections = Array.isArray(data.result_sections) ? data.result_sections : [];
-                    document.getElementById('rawBox').textContent = lastExtracted;
-                    renderResults(data);
-                    setStep(4, 'Packaging results', 'Source cards are ready to review.', 'done');
-                    document.getElementById('traceStatus').textContent = 'Complete';
-                } else {
-                    lastExtracted = normalizeText(data.message || 'No result');
-                    document.getElementById('rawBox').textContent = lastExtracted;
-                    document.getElementById('sourceGrid').innerHTML = `
+                try {
+                    const response = await fetch("/agent", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ request: query }),
+                    });
+                    const data = await response.json();
+
+                    setStep(
+                        1,
+                        "Understanding the brief",
+                        "Keyword and category locked in.",
+                        "done",
+                    );
+                    setStep(
+                        2,
+                        "Selecting sources",
+                        "Primary and fallback source queues prepared.",
+                        "done",
+                    );
+                    setStep(
+                        3,
+                        "Extracting evidence",
+                        "Evidence gathered and filtered.",
+                        data.status === "success" ? "done" : "active",
+                    );
+
+                    document.getElementById("resultsHeadline").textContent =
+                        normalizeText(query);
+                    document.getElementById("resultsSubline").textContent =
+                        data.status === "success"
+                            ? "Multi-source answer generated from ranked sites."
+                            : "The request completed with no usable extraction.";
+                    document.getElementById("categoryValue").textContent =
+                        data.category || data.debug?.category || "-";
+                    document.getElementById("keywordValue").textContent =
+                        normalizeText(
+                            data.keyword || data.debug?.keyword || "-",
+                        );
+                    const visibleSourceCount =
+                        data.visible_source_count ??
+                        (data.result_sections || []).length ??
+                        (data.sites_scraped || []).length;
+                    document.getElementById("successCount").textContent =
+                        String(visibleSourceCount);
+
+                    renderTrace(data.debug || {});
+
+                    if (data.status === "success") {
+                        lastExtracted = normalizeText(data.extracted || "");
+                        lastResultSections = Array.isArray(data.result_sections)
+                            ? data.result_sections
+                            : [];
+                        document.getElementById("rawBox").textContent =
+                            lastExtracted;
+                        renderResults(data);
+                        setStep(
+                            4,
+                            "Packaging results",
+                            "Source cards are ready to review.",
+                            "done",
+                        );
+                        document.getElementById("traceStatus").textContent =
+                            "Complete";
+                    } else {
+                        lastExtracted = normalizeText(
+                            data.message || "No result",
+                        );
+                        document.getElementById("rawBox").textContent =
+                            lastExtracted;
+                        document.getElementById("sourceGrid").innerHTML = `
                         <article class="source-card">
                             <div class="source-top">
                                 <div class="source-site">No usable extraction</div>
                                 <div class="source-badge">Try another query</div>
                             </div>
-                            <p class="source-summary">${safeHtml(normalizeText(data.message || 'The available sources did not return enough usable data.'))}</p>
+                            <p class="source-summary">${safeHtml(normalizeText(data.message || "The available sources did not return enough usable data."))}</p>
                         </article>
                     `;
-                    setStep(4, 'Packaging results', 'No final answer could be formed from the available pages.', '');
-                    document.getElementById('traceStatus').textContent = 'Needs review';
-                }
+                        setStep(
+                            4,
+                            "Packaging results",
+                            "No final answer could be formed from the available pages.",
+                            "",
+                        );
+                        document.getElementById("traceStatus").textContent =
+                            "Needs review";
+                    }
 
-                scrollToResults();
-            } catch (error) {
-                document.getElementById('resultsSection').classList.remove('hidden');
-                document.getElementById('sourceGrid').innerHTML = `
+                    scrollToResults();
+                } catch (error) {
+                    document
+                        .getElementById("resultsSection")
+                        .classList.remove("hidden");
+                    document.getElementById("sourceGrid").innerHTML = `
                     <article class="source-card">
                         <div class="source-top">
                             <div class="source-site">Request failed</div>
@@ -1258,12 +1628,18 @@
                         <p class="source-summary">${safeHtml(error.message)}</p>
                     </article>
                 `;
-                document.getElementById('traceStatus').textContent = 'Request failed';
-                setStep(3, 'Extracting evidence', 'The request failed before a final answer was produced.', '');
-            } finally {
-                setBusy(false);
+                    document.getElementById("traceStatus").textContent =
+                        "Request failed";
+                    setStep(
+                        3,
+                        "Extracting evidence",
+                        "The request failed before a final answer was produced.",
+                        "",
+                    );
+                } finally {
+                    setBusy(false);
+                }
             }
-        }
-    </script>
-</body>
+        </script>
+    </body>
 </html>
